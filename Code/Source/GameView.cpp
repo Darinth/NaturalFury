@@ -1,0 +1,28 @@
+// Name:
+// GameView.h
+// Description:
+// Implementation file for GameView class
+// Notes:
+// OS-Unaware
+
+#include "GameView.h"
+
+#include <thread>
+#include <memory>
+
+#include "EngineMsg.h"
+
+GameView::GameView() : requiresProcessing(false)
+{
+
+}
+
+GameView::~GameView()
+{
+
+}
+
+void GameView::process()
+{
+
+}

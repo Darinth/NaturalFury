@@ -1,0 +1,9 @@
+*.log
+Code/Debug/
+Code/Temp/
+Corel Auto-Preserve/
+*.suo
+ASCII.txt
+*.sdf
+*.suo
+*.opensdf
