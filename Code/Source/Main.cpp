@@ -6,7 +6,6 @@
 // OS-Aware
 
 #include <Windows.h>
-#include <thread>
 #include <string>
 using namespace std;
 
@@ -62,6 +61,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			nextTick += 16;
 			//Proceses a tick
 			gameEngine->tick();
+			if (gameEngine->getGameState() == GameState::SHUT_DOWN)
+				PostQuitMessage(0);
 			this_thread::yield();
 		}
 

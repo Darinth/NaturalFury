@@ -84,6 +84,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
+    <ClCompile Include="..\..\Source\Process.cpp" />
     <ClCompile Include="..\..\Source\GameEngine.cpp" />
     <ClCompile Include="..\..\Source\GameView.cpp" />
     <ClCompile Include="..\..\Source\LocalPlayerView.cpp" />
@@ -93,6 +94,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\EngineMsg.h" />
+    <ClInclude Include="..\..\Source\Process.h" />
     <ClInclude Include="..\..\Source\GameEngine.h" />
     <ClInclude Include="..\..\Source\GameView.h" />
     <ClInclude Include="..\..\Source\KeyEnum.h" />

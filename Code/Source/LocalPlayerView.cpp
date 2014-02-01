@@ -30,5 +30,5 @@ void LocalPlayerView::sendMsg(const shared_ptr<EngineMsg>& msg)
 void LocalPlayerView::windowClosed()
 {
 	//On window close, tell the engine to shut down.
-	gameEngine->pushMsg(shared_ptr<EngineMsg>(new EngineMsgShutdown()));
+	gameEngine->sendMsg(shared_ptr<EngineMsg>(new EngineMsgShutdown()));
 }

@@ -11,6 +11,7 @@
 
 #include <thread>
 #include <list>
+#include <map>
 #include <memory>
 using namespace std;
 
@@ -18,6 +19,7 @@ using namespace std;
 #include "Lockable.h"
 
 class GameView;
+class Process;
 
 enum class GameState
 {
@@ -34,6 +36,8 @@ private:
 	int width;
 	list<shared_ptr<EngineMsg>> msgQueue;
 	list<shared_ptr<GameView>> viewList;
+	multimap<unsigned int, shared_ptr<Process>> processList;
+	unsigned int currentTick;
 
 	GameEngine(const GameEngine& gameEngine) = delete;
 	GameEngine& operator =(const GameEngine& gameEngine) = delete;
@@ -43,8 +47,10 @@ public:
 	virtual ~GameEngine();
 
 	virtual void tick();
-	virtual void pushMsg(const shared_ptr<EngineMsg>& msg);
+	virtual void sendMsg(const shared_ptr<EngineMsg>& msg);
 	void addView(shared_ptr<GameView> view);
+	void addProcess(shared_ptr<Process> process);
+	GameState getGameState();
 };
 
 #endif
