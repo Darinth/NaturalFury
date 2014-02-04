@@ -31,7 +31,7 @@ public:
 	Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView);
 	~Window();
 
-#ifdef _WIN32
+#ifdef _WINDOWS
 	virtual int handleMessage(void* windowHandle, unsigned int message, unsigned int wParam, long lParam);
 #endif
 

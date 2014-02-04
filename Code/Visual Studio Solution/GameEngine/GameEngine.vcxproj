@@ -43,8 +43,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>..\..\$(Configuration)\</OutDir>
-    <IncludePath>..\..\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>..\..\Lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)..\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\Lib;$(LibraryPath)</LibraryPath>
     <IntDir>..\..\Temp\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -56,12 +56,13 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>tinyxmlSTLD.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -84,6 +85,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
+    <ClCompile Include="..\..\Source\Logger.cpp" />
     <ClCompile Include="..\..\Source\Process.cpp" />
     <ClCompile Include="..\..\Source\GameEngine.cpp" />
     <ClCompile Include="..\..\Source\GameView.cpp" />
@@ -94,6 +96,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\EngineMsg.h" />
+    <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\Process.h" />
     <ClInclude Include="..\..\Source\GameEngine.h" />
     <ClInclude Include="..\..\Source\GameView.h" />
@@ -101,6 +104,8 @@
     <ClInclude Include="..\..\Source\LocalPlayerView.h" />
     <ClInclude Include="..\..\Source\Lockable.h" />
     <ClInclude Include="..\..\Source\PlayerView.h" />
+    <ClInclude Include="..\..\Source\ThreadSafeFStream.h" />
+    <ClInclude Include="..\..\Source\ThreadSafeStream.h" />
     <ClInclude Include="..\..\Source\Window.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

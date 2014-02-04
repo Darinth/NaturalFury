@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<LogParams>
+	<Tag name="Lua" file="Lua.log" enabled="1" />
+	<Tag name="FPS" file="FPS.log" enabled="1" />
+	<Tag name="Graphics" file="Graphics.log" enabled="1" />
+</LogParams>

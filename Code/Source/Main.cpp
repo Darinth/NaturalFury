@@ -11,6 +11,7 @@ using namespace std;
 
 #include "GameEngine.h"
 #include "LocalPlayerView.h"
+#include "Logger.h"
 
 /*      Screen/display attributes*/
 int width = 800;
@@ -20,6 +21,9 @@ int bits = 32;
 HDC deviceContext;
 
 GameEngine *gameEngine;
+
+Logger* appLogger;
+
 
 //Default Initialization values
 bool fullScreen = false;
@@ -31,6 +35,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 {	
 	MSG             msg;                    //message
 	bool    done;                   //flag for completion of app
+
+	appLogger = new Logger("LogInit.xml", "General.log");
 
 	//Create GameEngnie
 	gameEngine = new GameEngine();
@@ -89,6 +95,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			}
 		}
 	}
+
+	delete gameEngine;
+	delete appLogger;
 
 	//return the quit message parameter
 	return msg.wParam;
