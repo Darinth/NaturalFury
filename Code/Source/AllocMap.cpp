@@ -8,6 +8,7 @@
 #include "AllocMap.h"
 
 #include <functional>
+#include <sstream>
 using namespace std;
 
 AllocMap::AllocMap()
@@ -67,8 +68,24 @@ void AllocMap::doubleSlots()
 	}
 }
 
+string AllocMap::getAllocData()
+{
+	lock_guard<mutex> objectLock(objectMutex);
+	//stream to hold results
+	stringstream result;
+	//Iterate over the map and write out any pointers that aren't null
+	for (unsigned int I = 0; I < allocatedSlots; I++)
+	{
+		if (allocDataMap[I].ptr != nullptr)
+			result << allocDataMap[I].ptr << "{sourceFile: " << allocDataMap[I].sourceFile << ", funcName: " << allocDataMap[I].funcName << ", lineNum: " << allocDataMap[I].lineNum << "}" << endl;
+	}
+	//Copy up to 5000 characters from result stream to temp.
+	return result.str();
+}
+
 void AllocMap::map(const AllocData& allocData)
 {
+	lock_guard<mutex> objectLock(objectMutex);
 	//Increment used slots, this function shouldn't ever be called unsuccessfully
 	usedSlots++;
 
@@ -96,6 +113,7 @@ void AllocMap::map(const AllocData& allocData)
 
 AllocData AllocMap::retrieve(void* ptr)
 {
+	lock_guard<mutex> objectLock(objectMutex);
 	//Get starting slot for search
 	unsigned long slot = hasher(ptr) >> shift;
 	//Store starting slot to make sure we don't infinitely loop around
@@ -117,6 +135,7 @@ AllocData AllocMap::retrieve(void* ptr)
 
 void AllocMap::erase(void* ptr)
 {
+	lock_guard<mutex> objectLock(objectMutex);
 	//Get starting slot
 	unsigned long slot = hasher(ptr) >> shift;
 	//Store starting slot to make sure we don't infinitely loop
@@ -132,16 +151,4 @@ void AllocMap::erase(void* ptr)
 	}
 	//Null the pointer once it's found, no need to change the rest of the data it'll get overwritten when the slot is reused.
 	allocDataMap[slot].ptr = nullptr;
-}
-
-AllocMap::iterator AllocMap::begin()
-{
-	//Returns the pointer to the start of the list
-	return allocDataMap;
-}
-
-AllocMap::iterator AllocMap::end()
-{
-	//Returns the pointer just past the end of the list
-	return allocDataMap + allocatedSlots;
 }

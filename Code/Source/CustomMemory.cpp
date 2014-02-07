@@ -1,12 +1,14 @@
 #include <cstddef>
 #include <iostream>
 #include <exception>
-#include <sstream>
 #include <string>
 #include <functional>
+#include <mutex>
 using namespace std;
 
 #include "AllocMap.h"
+
+recursive_mutex memoryMutex;
 
 //Allocation map to keep track of where everything is allocated to/from
 AllocMap allocMap;
@@ -21,6 +23,7 @@ void* operator new[](unsigned int size, const char* sourceFile, const char *func
 
 string getAllocs()
 {
+	lock_guard<recursive_mutex> memoryLock(memoryMutex);
 	//If we're running without allocation tracking, don't return anything.
 	if (allocDisabled == true)
 		return string();
@@ -29,16 +32,7 @@ string getAllocs()
 	//Disable memory allocation tracking within the block
 	allocDisabled = true;
 	{
-		//stream to hold results
-		stringstream result;
-		//Iterate over the map and write out any pointers that aren't null
-		for (AllocMap::iterator it = allocMap.begin(); it != allocMap.end(); it++)
-		{
-			if (it->ptr != nullptr)
-				result << it->ptr << "{sourceFile: " << it->sourceFile << ", funcName: " << it->funcName << ", lineNum: " << it->lineNum << "}" << endl;
-		}
-		//Copy up to 5000 characters from result stream to temp.
-		strcpy(temp, result.str().substr(0,5000).c_str());
+		strcpy(temp, allocMap.getAllocData().substr(0, 5000).c_str());
 	}
 	//Re-enable allocation tracking
 	allocDisabled = false;
@@ -61,8 +55,11 @@ void* operator new(unsigned int size, const char* sourceFile, const char *funcNa
 	//Allocate memory for pointer
 	void* temp = malloc(size);
 	//Unless allocation tracking is disabled, track allocated memory.
-	if (!allocDisabled)
-		allocMap.map(AllocData{ temp, sourceFile, funcName, lineNum });
+	{
+		lock_guard<recursive_mutex> memoryLock(memoryMutex);
+		if (!allocDisabled)
+			allocMap.map(AllocData{ temp, sourceFile, funcName, lineNum });
+	}
 	//Return pointer
 	return temp;
 }
@@ -72,8 +69,11 @@ void* operator new[](unsigned int size, const char* sourceFile, const char *func
 	//Allocate memory for pointer
 	void* temp = malloc(size);
 	//Unless allocation tracking is disabled, track allocated memory.
-	if (!allocDisabled)
-		allocMap.map(AllocData{ temp, sourceFile, funcName, lineNum });
+	{
+		lock_guard<recursive_mutex> memoryLock(memoryMutex);
+		if (!allocDisabled)
+			allocMap.map(AllocData{ temp, sourceFile, funcName, lineNum });
+	}
 	//Return pointer
 	return temp;
 }
@@ -105,8 +105,11 @@ void operator delete[](void* ptr, const char* sourceFile, const char *funcName, 
 void NF_delete(void* ptr)
 {
 	//Unless allocation tracking is disabled, remove tracked pointer
-	if (!allocDisabled)
-		allocMap.erase(ptr);
+	{
+		lock_guard<recursive_mutex> memoryLock(memoryMutex);
+		if (!allocDisabled)
+			allocMap.erase(ptr);
+	}
 	//Free the pointer
 	free(ptr);
 }

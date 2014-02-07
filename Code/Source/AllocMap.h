@@ -10,6 +10,7 @@
 #define ALLOC_MAP_H
 
 #include <string>
+#include <mutex>
 using namespace std;
 
 //Data for the allocation of a single pointer
@@ -24,6 +25,7 @@ struct AllocData
 class AllocMap
 {
 private:
+	mutex objectMutex;
 	hash<void*> hasher;
 	AllocData  *allocDataMap;
 	unsigned long allocatedSlots;
@@ -32,8 +34,7 @@ private:
 	short shift;
 
 	void doubleSlots();
-public:
-	typedef AllocData *iterator;
+	string getAllocData();
 
 public:
 	AllocMap();
@@ -41,8 +42,8 @@ public:
 	void map(const AllocData& allocData);
 	AllocData retrieve(void* ptr);
 	void erase(void* ptr);
-	AllocMap::iterator begin();
-	AllocMap::iterator end();
+
+	friend string getAllocs();
 };
 
 #endif
