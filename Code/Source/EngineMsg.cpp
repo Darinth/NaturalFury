@@ -7,6 +7,8 @@
 
 #include "EngineMsg.h"
 
+#include "CustomMemory.h"
+
 EngineMsg::EngineMsg(MsgTypeEnum msgType) : msgType(msgType){}
 EngineMsgShutdown::EngineMsgShutdown() : EngineMsg(MsgTypeEnum::Shutdown){}
 //EngineMsgMouseMove::EngineMsgMouseMove(short x, short y) : EngineMsg(MsgTypeEnum::KeyPress), x(x), y(y){}

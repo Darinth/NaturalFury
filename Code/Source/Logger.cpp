@@ -8,6 +8,8 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+#include "CustomMemory.h"
+
 #include "Logger.h"
 
 #include <string>
@@ -53,6 +55,58 @@ string escapeFileName(const string& fileName)
 
 
 	return nameBuilder.str();
+}
+
+void writeLog(const string &file, const string &message, LogLevel logLevel, const char *funcName, const char* sourceFile, unsigned int lineNum)
+{
+	//Create the debug message
+	//Format is '[Level]YYYY-MM-DD HH:MM:SS "Message" sourceFile, functionname(line lineNumber)'
+	stringstream debugMessage;
+	if (logLevel == LogLevel::Info)
+		debugMessage << "[Info]";
+	else if (logLevel == LogLevel::Warning)
+		debugMessage << "[Warning]";
+	else if (logLevel == LogLevel::Error)
+		debugMessage << "[Error]";
+	time_t t = time(0);   // get time now
+	struct tm * now = localtime(&t);
+	debugMessage << (now->tm_year + 1900) << '-' << (now->tm_mon + 1) << '-' << now->tm_mday << " ";
+	debugMessage << (now->tm_hour) << ":" << now->tm_min << ":" << now->tm_sec << " ";
+	debugMessage << "\"" << message << "\" " << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
+
+	fstream stream(file, ios_base::out);
+	stream << debugMessage.str();
+	stream.flush();
+
+	//If we're above an info level log message, write to whatever console is available for debugging
+	//ignore this when we're not running a debug build
+#ifdef _DEBUG
+	if (logLevel != LogLevel::Info)
+	{
+#ifdef _WINDOWS
+		OutputDebugString(debugMessage.str().c_str());
+#endif
+	}
+#endif
+
+	//If this is an error, output to the error log and display a dialog box with the message
+	//Don't worry about the dialog box if we're not in debug mode.
+	if (logLevel == LogLevel::Error)
+	{
+#ifdef _DEBUG
+#ifdef _WINDOWS
+		int result = MessageBox(NULL, debugMessage.str().c_str(), "ERROR", MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_DEFBUTTON3);
+		if (result == IDABORT)
+		{
+			DebugBreak();
+		}
+		else if (result == IDIGNORE)
+		{
+			//Setup ignore code here so that the same error will be ignored in the future.
+		}
+#endif
+#endif
+	}
 }
 
 Logger::Logger(string initializationFile, string generalLog) : generalStream(generalLog.c_str(), ios_base::out), warningStream("Warning.log", ios_base::out), errorStream("Error.log", ios_base::out)

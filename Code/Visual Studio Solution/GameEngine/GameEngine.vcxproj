@@ -56,7 +56,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -84,6 +84,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\Source\AllocMap.cpp" />
+    <ClCompile Include="..\..\Source\CustomMemory.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
     <ClCompile Include="..\..\Source\Process.cpp" />
@@ -95,6 +97,8 @@
     <ClCompile Include="..\..\Source\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\Source\AllocMap.h" />
+    <ClInclude Include="..\..\Source\CustomMemory.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\Process.h" />
@@ -104,7 +108,6 @@
     <ClInclude Include="..\..\Source\LocalPlayerView.h" />
     <ClInclude Include="..\..\Source\Lockable.h" />
     <ClInclude Include="..\..\Source\PlayerView.h" />
-    <ClInclude Include="..\..\Source\ThreadSafeFStream.h" />
     <ClInclude Include="..\..\Source\ThreadSafeStream.h" />
     <ClInclude Include="..\..\Source\Window.h" />
   </ItemGroup>

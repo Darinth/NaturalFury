@@ -5,6 +5,8 @@
 // Notes:
 // OS-Unaware
 
+#include "CustomMemory.h"
+
 #include "PlayerView.h"
 
 PlayerView::PlayerView() : gameWindow("Game Engine", "GameEngine", false, 800, 450, 32, this)

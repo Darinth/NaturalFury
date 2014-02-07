@@ -42,6 +42,12 @@
     <ClCompile Include="..\..\Source\Logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\CustomMemory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AllocMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\EngineMsg.h">
@@ -77,7 +83,10 @@
     <ClInclude Include="..\..\Source\Logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\ThreadSafeFStream.h">
+    <ClInclude Include="..\..\Source\CustomMemory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AllocMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

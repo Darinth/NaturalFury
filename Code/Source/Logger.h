@@ -18,6 +18,13 @@ using namespace std;
 #include "ThreadSafeStream.h"
 #include "Lockable.h"
 
+enum class LogLevel
+{
+	Error = 0,
+	Warning = 1,
+	Info = 2
+};
+
 struct TagDefinition
 {
 	string file;
@@ -30,12 +37,6 @@ private:
 	unordered_map<string, TagDefinition> tagDefinitions;
 	unordered_map<string, ThreadSafeStream<fstream>*> logStreams;
 public:
-	enum class LogLevel
-	{
-		Error = 0,
-		Warning = 1,
-		Info = 2
-	};
 
 	//General stream for untagged writes
 	ThreadSafeStream<fstream> generalStream;
@@ -53,5 +54,8 @@ public:
 	void eWriteLog(const string &message, LogLevel logLevel, const initializer_list<string> &tags);
 #define eWriteLog(message, logLevel, tags) writeLog(message, logLevel, tags, __FUNCTION__, __FILE__, __LINE__)
 };
+
+void writeLog(const string &file, const string &message, LogLevel logLevel, const char *funcName, const char* sourceFile, unsigned int lineNum);
+#define staticLog(file, message, logLevel) writeLog(file, message, logLevel, __FUNCTION__, __FILE__, __LINE__)
 
 #endif

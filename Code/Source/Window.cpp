@@ -8,6 +8,8 @@
 // The struct HData(Hidden Data) is the same length as the struct PData(Private Data).
 // hData is reinterpret cast into a pData to allow the application to keep data hidden without requiring additional memory allocation, memory deallocation, or pointer dereferencing.
 
+#include "CustomMemory.h"
+
 #include <Windows.h>
 #include <string>
 #include <iostream>

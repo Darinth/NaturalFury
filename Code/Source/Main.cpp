@@ -5,6 +5,8 @@
 // Notes:
 // OS-Aware
 
+#include "CustomMemory.h"
+
 #include <Windows.h>
 #include <string>
 using namespace std;
@@ -12,6 +14,7 @@ using namespace std;
 #include "GameEngine.h"
 #include "LocalPlayerView.h"
 #include "Logger.h"
+#include "CustomMemory.h"
 
 /*      Screen/display attributes*/
 int width = 800;
@@ -98,6 +101,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	delete gameEngine;
 	delete appLogger;
+
+	string allocLog = getAllocs();
+
+	if (allocLog.length() > 0)
+	{
+		staticLog("AllocLog.log", allocLog, LogLevel::Warning);
+	}
 
 	//return the quit message parameter
 	return msg.wParam;
