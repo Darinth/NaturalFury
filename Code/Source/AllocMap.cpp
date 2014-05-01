@@ -70,7 +70,7 @@ void AllocMap::doubleSlots()
 
 string AllocMap::getAllocData()
 {
-	lock_guard<mutex> objectLock(objectMutex);
+	lock_guard<recursive_mutex> objectLock(objectMutex);
 	//stream to hold results
 	stringstream result;
 	//Iterate over the map and write out any pointers that aren't null
@@ -85,7 +85,7 @@ string AllocMap::getAllocData()
 
 void AllocMap::map(const AllocData& allocData)
 {
-	lock_guard<mutex> objectLock(objectMutex);
+	lock_guard<recursive_mutex> objectLock(objectMutex);
 	//Increment used slots, this function shouldn't ever be called unsuccessfully
 	usedSlots++;
 
@@ -113,7 +113,7 @@ void AllocMap::map(const AllocData& allocData)
 
 AllocData AllocMap::retrieve(void* ptr)
 {
-	lock_guard<mutex> objectLock(objectMutex);
+	lock_guard<recursive_mutex> objectLock(objectMutex);
 	//Get starting slot for search
 	unsigned long slot = hasher(ptr) >> shift;
 	//Store starting slot to make sure we don't infinitely loop around
@@ -135,7 +135,7 @@ AllocData AllocMap::retrieve(void* ptr)
 
 void AllocMap::erase(void* ptr)
 {
-	lock_guard<mutex> objectLock(objectMutex);
+	lock_guard<recursive_mutex> objectLock(objectMutex);
 	//Get starting slot
 	unsigned long slot = hasher(ptr) >> shift;
 	//Store starting slot to make sure we don't infinitely loop

@@ -25,7 +25,7 @@ struct AllocData
 class AllocMap
 {
 private:
-	mutex objectMutex;
+	recursive_mutex objectMutex;
 	hash<void*> hasher;
 	AllocData  *allocDataMap;
 	unsigned long allocatedSlots;

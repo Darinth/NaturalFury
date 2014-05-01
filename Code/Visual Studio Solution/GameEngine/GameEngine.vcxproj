@@ -56,13 +56,13 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZLIB_WINAPI;_CRT_SECURE_NO_WARNINGS;TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>tinyxmlSTLD.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>tinyxmlSTLD.lib;zlibstatd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -86,21 +86,30 @@
   <ItemGroup>
     <ClCompile Include="..\..\Source\AllocMap.cpp" />
     <ClCompile Include="..\..\Source\CustomMemory.cpp" />
+    <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
+    <ClCompile Include="..\..\Source\MasterDirectoryResoruceSource.cpp" />
     <ClCompile Include="..\..\Source\Process.cpp" />
     <ClCompile Include="..\..\Source\GameEngine.cpp" />
     <ClCompile Include="..\..\Source\GameView.cpp" />
     <ClCompile Include="..\..\Source\LocalPlayerView.cpp" />
     <ClCompile Include="..\..\Source\Main.cpp" />
     <ClCompile Include="..\..\Source\PlayerView.cpp" />
+    <ClCompile Include="..\..\Source\ResourceCache.cpp" />
+    <ClCompile Include="..\..\Source\ResourceHandle.cpp" />
     <ClCompile Include="..\..\Source\Window.cpp" />
+    <ClCompile Include="..\..\Source\ZipResourceSource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\AllocMap.h" />
     <ClInclude Include="..\..\Source\CustomMemory.h" />
+    <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
+    <ClInclude Include="..\..\Source\IResourceLoader.h" />
+    <ClInclude Include="..\..\Source\IResourceSource.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
+    <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\Process.h" />
     <ClInclude Include="..\..\Source\GameEngine.h" />
     <ClInclude Include="..\..\Source\GameView.h" />
@@ -108,6 +117,9 @@
     <ClInclude Include="..\..\Source\LocalPlayerView.h" />
     <ClInclude Include="..\..\Source\Lockable.h" />
     <ClInclude Include="..\..\Source\PlayerView.h" />
+    <ClInclude Include="..\..\Source\ResourceHandle.h" />
+    <ClInclude Include="..\..\Source\ResourceCache.h" />
+    <ClInclude Include="..\..\Source\ZipResourceSource.h" />
     <ClInclude Include="..\..\Source\ThreadSafeStream.h" />
     <ClInclude Include="..\..\Source\Window.h" />
   </ItemGroup>

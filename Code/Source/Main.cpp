@@ -14,7 +14,6 @@ using namespace std;
 #include "GameEngine.h"
 #include "LocalPlayerView.h"
 #include "Logger.h"
-#include "CustomMemory.h"
 
 /*      Screen/display attributes*/
 int width = 800;

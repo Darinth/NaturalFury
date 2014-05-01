@@ -4,4 +4,5 @@
 	<Tag name="Lua" file="Lua.log" enabled="1" />
 	<Tag name="FPS" file="FPS.log" enabled="1" />
 	<Tag name="Graphics" file="Graphics.log" enabled="1" />
+	<Tag name="Resource" file="Resource.log" enabled="1" />
 </LogParams>
