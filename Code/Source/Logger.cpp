@@ -143,6 +143,14 @@ Logger::Logger(string initializationFile, string generalLog) : generalStream(gen
 	}
 }
 
+Logger::~Logger()
+{
+	for (unordered_map<string, ThreadSafeStream<fstream>*>::iterator it = logStreams.begin(); it != logStreams.end(); it++)
+	{
+		delete (it->second);
+	}
+}
+
 void Logger::writeLog(const string &message, LogLevel logLevel, const initializer_list<string> &tags, const char *funcName, const char* sourceFile, unsigned int lineNum)
 {
 	//Create the debug message

@@ -46,6 +46,7 @@ public:
 
 public:
 	Logger(string initializationFile, string generalLog);
+	~Logger();
 
 	//Writes a message to the log
 	void writeLog(const string &message, LogLevel logLevel, const initializer_list<string> &tags, const char *funcName, const char* sourceFile, unsigned int lineNum);

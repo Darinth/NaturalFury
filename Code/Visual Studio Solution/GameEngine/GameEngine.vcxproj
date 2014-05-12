@@ -89,7 +89,7 @@
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
-    <ClCompile Include="..\..\Source\MasterDirectoryResoruceSource.cpp" />
+    <ClCompile Include="..\..\Source\MasterDirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\Process.cpp" />
     <ClCompile Include="..\..\Source\GameEngine.cpp" />
     <ClCompile Include="..\..\Source\GameView.cpp" />
@@ -106,7 +106,7 @@
     <ClInclude Include="..\..\Source\CustomMemory.h" />
     <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
-    <ClInclude Include="..\..\Source\IResourceLoader.h" />
+    <ClInclude Include="..\..\Source\IResourceProcessor.h" />
     <ClInclude Include="..\..\Source\IResourceSource.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h" />

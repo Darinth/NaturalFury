@@ -14,6 +14,8 @@ ResourceHandle::ResourceHandle(string name, char* resource, unsigned int resourc
 
 ResourceHandle::~ResourceHandle()
 {
+	//Unallocate memory
 	delete[] resource;
+	//Tell the cache that the memory was released.
 	resourceCache->memoryReleased(resourceSize);
 }

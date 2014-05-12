@@ -32,7 +32,7 @@ string getAllocs()
 	//Disable memory allocation tracking within the block
 	allocDisabled = true;
 	{
-		strcpy(temp, allocMap.getAllocData().substr(0, 5000).c_str());
+		strcpy(temp, allocMap.getAllocData().substr(0, 4999).c_str());
 	}
 	//Re-enable allocation tracking
 	allocDisabled = false;

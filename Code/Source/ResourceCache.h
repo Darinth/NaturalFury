@@ -12,18 +12,20 @@
 #include <map>
 #include <list>
 #include <memory>
+#include <mutex>
 using namespace std;
 
 class ResourceHandle;
 class IResourceSource;
-class IResourceLoader;
+class IResourceProcessor;
 
 class ResourceCache
 {
 private:
+	recursive_mutex objectMutex;
 	list<shared_ptr<ResourceHandle> > freeQueue;
 	map<string, weak_ptr<ResourceHandle> > resourceHandleMap;
-	list<shared_ptr<IResourceLoader> > resourceLoaders;
+	list<shared_ptr<IResourceProcessor> > resourceProcessors;
 	IResourceSource *resourceSource;
 
 	unsigned int allocatedMemory;
@@ -32,18 +34,27 @@ private:
 	shared_ptr<ResourceHandle> load(const string &resource);
 	bool makeRoom(unsigned int size);
 	bool freeOneResource();
+	char *allocate(unsigned int size);
+	//Tells the ResourceCache that memory was released. Used by ResourceHandle to inform the ResourceCache when it is destroyed.
+	void memoryReleased(unsigned int size);
+
+	friend class ResourceHandle;
 
 public:
+	//Consturctor
+	//Takes size of cache and a IResourceSource which is used to obtain resources.
 	ResourceCache(unsigned int size, IResourceSource *resourceSource);
 	virtual ~ResourceCache();
-	
-	void registerLoader(shared_ptr<IResourceLoader> resourceLoader);
 
+	//Add a processor to pre-process resources before handles are returned.
+	void registerProcessor(shared_ptr<IResourceProcessor> resourceProcessor);
+
+	//Get a ResourceHandle to the requested resource, loading it if needed
 	shared_ptr<ResourceHandle> gethandle(const string &resourceName);
+	//Makes sure a particular resource is in the cache, but doesn't actually get the handle.
 	void preLoad(const string &resourceName);
+	//Gets rid of all of the shared_ptrs to handles
 	void flush();
-	char *allocate(unsigned int size);
-	void memoryReleased(unsigned int size);
 };
 
 #endif

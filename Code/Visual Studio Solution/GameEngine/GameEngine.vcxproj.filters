@@ -60,7 +60,7 @@
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\MasterDirectoryResoruceSource.cpp">
+    <ClCompile Include="..\..\Source\MasterDirectoryResourceSource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -113,9 +113,6 @@
     <ClInclude Include="..\..\Source\ResourceCache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\IResourceLoader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Source\ZipResourceSource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -123,6 +120,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\IResourceProcessor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

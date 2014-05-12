@@ -1,13 +1,13 @@
 // Name:
-// IResourceLoader.h
+// IResourceProcessor.h
 // Description:
 // Header file for IResourceLoader class
-// An IResourceLoader simply contains methods for pre-processing resources
+// An IResourceProcessor simply contains methods for pre-processing resources
 // Notes:
 // OS-Unaware
 
-#ifndef RESOURCE_LOADER_H
-#define RESOURCE_LOADER_H
+#ifndef RESOURCE_PROCESSOR_H
+#define RESOURCE_PROCESSOR_H
 
 #include <string>
 #include <memory>
@@ -15,12 +15,12 @@ using namespace std;
 
 class ResourceHandle;
 
-class IResourceLoader
+class IResourceProcessor
 {
 public:
 	virtual string getPattern() = 0;
 	virtual bool checkRawFile(shared_ptr<ResourceHandle> resource) = 0;
-	virtual shared_ptr<ResourceHandle> loadResource(shared_ptr<ResourceHandle> resource) = 0;
+	virtual shared_ptr<ResourceHandle> processResource(shared_ptr<ResourceHandle> resource) = 0;
 };
 
 #endif
