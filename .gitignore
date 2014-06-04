@@ -1,5 +1,6 @@
 *.log
 Code/Debug/
+Code/Release/
 Code/Temp/
 Corel Auto-Preserve/
 *.suo

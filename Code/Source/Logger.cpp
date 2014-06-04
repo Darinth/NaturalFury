@@ -6,8 +6,6 @@
 // OS-Aware
 // Uses OS-Specific functions for logging and displaying different kinds of errors.
 
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "CustomMemory.h"
 
 #include "Logger.h"
