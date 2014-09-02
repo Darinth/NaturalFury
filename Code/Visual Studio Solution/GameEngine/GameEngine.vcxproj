@@ -59,13 +59,13 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>ZLIB_WINAPI;_CRT_SECURE_NO_WARNINGS;TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZLIB_WINAPI;TIXML_USE_STL;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>tinyxmlSTLD.lib;zlibstatd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glloadD.lib;glutilD.lib;Opengl32.lib;tinyxmlSTLD.lib;zlibstatd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -76,7 +76,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>ZLIB_WINAPI;_CRT_SECURE_NO_WARNINGS;TIXML_USE_STL;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZLIB_WINAPI;TIXML_USE_STL;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -84,7 +84,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>tinyxmlSTL.lib;zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glload.lib;glutil.lib;Opengl32.lib;tinyxmlSTL.lib;zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers />
     </Link>
   </ItemDefinitionGroup>
@@ -93,6 +93,8 @@
     <ClCompile Include="..\..\Source\CustomMemory.cpp" />
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
+    <ClCompile Include="..\..\Source\GraphicsEngine.cpp" />
+    <ClCompile Include="..\..\Source\lodepng.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
     <ClCompile Include="..\..\Source\MasterDirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\Process.cpp" />
@@ -108,11 +110,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\AllocMap.h" />
+    <ClInclude Include="..\..\Source\ColoredVertex.h" />
     <ClInclude Include="..\..\Source\CustomMemory.h" />
     <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
+    <ClInclude Include="..\..\Source\GraphicsEngine.h" />
     <ClInclude Include="..\..\Source\IResourceProcessor.h" />
     <ClInclude Include="..\..\Source\IResourceSource.h" />
+    <ClInclude Include="..\..\Source\lodepng.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\Process.h" />
@@ -124,6 +129,9 @@
     <ClInclude Include="..\..\Source\PlayerView.h" />
     <ClInclude Include="..\..\Source\ResourceHandle.h" />
     <ClInclude Include="..\..\Source\ResourceCache.h" />
+    <ClInclude Include="..\..\Source\TexturedTriangle.h" />
+    <ClInclude Include="..\..\Source\TexturedVertex.h" />
+    <ClInclude Include="..\..\Source\Vec3.h" />
     <ClInclude Include="..\..\Source\ZipResourceSource.h" />
     <ClInclude Include="..\..\Source\ThreadSafeStream.h" />
     <ClInclude Include="..\..\Source\Window.h" />

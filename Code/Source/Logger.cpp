@@ -6,6 +6,8 @@
 // OS-Aware
 // Uses OS-Specific functions for logging and displaying different kinds of errors.
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "CustomMemory.h"
 
 #include "Logger.h"
@@ -20,6 +22,14 @@
 #include <Windows.h>
 
 #include "ThreadSafeStream.h"
+
+void localtime_safe(time_t* t, tm& l)
+{
+	static mutex localtime_mutex;
+	lock_guard<mutex> lock(localtime_mutex);
+	tm* temp = localtime(t);
+	l = *temp;
+}
 
 string escapeFileName(const string& fileName)
 {
@@ -67,9 +77,10 @@ void writeLog(const string &file, const string &message, LogLevel logLevel, cons
 	else if (logLevel == LogLevel::Error)
 		debugMessage << "[Error]";
 	time_t t = time(0);   // get time now
-	struct tm * now = localtime(&t);
-	debugMessage << (now->tm_year + 1900) << '-' << (now->tm_mon + 1) << '-' << now->tm_mday << " ";
-	debugMessage << (now->tm_hour) << ":" << now->tm_min << ":" << now->tm_sec << " ";
+	tm now;
+	localtime_safe(&t, now);
+	debugMessage << (now.tm_year + 1900) << '-' << (now.tm_mon + 1) << '-' << now.tm_mday << " ";
+	debugMessage << (now.tm_hour) << ":" << now.tm_min << ":" << now.tm_sec << " ";
 	debugMessage << "\"" << message << "\" " << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
 
 	fstream stream(file, ios_base::out);
