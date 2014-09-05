@@ -14,6 +14,7 @@
 #include "Logger.h"
 #include "lodepng.h"
 #include "ThreadSafeStream.h"
+#include "ShaderProgram.h"
 
 extern Logger* appLogger;
 
@@ -194,7 +195,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	return shader;
 }
 
-GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), PoVX(0.0), PoVY(0.0), PoVZ(0.0), rotationX(0.0f), rotationY(0.0f)
+GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), PoV(0.0, 0.0, 0.0), rotationX(0.0f), rotationY(0.0f)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -245,173 +246,7 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 	//Enable Face Culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-	glFrontFace(GL_CW);
-
-	doErrorCheck();
-	//Setup Cylinder VAO & Buffer
-	glGenVertexArrays(1, &cylinderVAO);
-	glBindVertexArray(cylinderVAO);
-	glGenBuffers(1, &cylinderBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, cylinderBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cylinderVertices), cylinderVertices, GL_DYNAMIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 16, 0);
-	glVertexAttribPointer(1, 1, GL_UNSIGNED_BYTE, GL_FALSE, 16, (void *)(offsetof(TexturedVertex, texture)));
-	glVertexAttribPointer(2, 2, GL_UNSIGNED_BYTE, GL_TRUE, 16, (void *)(offsetof(TexturedVertex, textureX)));
-
-	doErrorCheck();
-	//Make the vertex and fragment shader
-	GLuint vertShader = makeShaderFromFile(GL_VERTEX_SHADER, "vertShader.vert");
-	GLuint fragShader = makeShaderFromFile(GL_FRAGMENT_SHADER, "fragShader.frag");
-
-	//Link the vertex and fragment shader
-	try
-	{
-		theProgram = glutil::LinkProgram(vertShader, fragShader);
-	}
-	catch (glutil::CompileLinkException e)
-	{
-		//NOTE: Should probably move this to an error log rather than a message box for release.
-		MessageBox(0, e.what(), "Error", 0);
-	}
-
-	//Check the program linking status
-	GLint didLink;
-	GLint logLength;
-	char* infoLog;
-	glGetProgramiv(theProgram, GL_LINK_STATUS, &didLink);
-
-	if (didLink == GL_TRUE)
-	{
-		//		MessageBox(0, "Linking Successful", "Error", 0);
-	}
-	else
-	{
-		//If the program didn't link, get errors information and display error message.
-		//NOTE: Should probably move this to an error log rather than a message box for release.
-		MessageBox(0, "Linking Error", "Error", 0);
-		glGetProgramiv(theProgram, GL_INFO_LOG_LENGTH, &logLength);
-		infoLog = new char[logLength + 10];
-		glGetProgramInfoLog(theProgram, logLength + 10, 0, infoLog);
-		MessageBox(0, infoLog, "Error", 0);
-		delete[] infoLog;
-	}
-
-	doErrorCheck();
-
-	//Load in line shaders
-	GLuint vertShaderLines = makeShaderFromFile(GL_VERTEX_SHADER, "vertShaderLines.vert");
-	GLuint fragShaderLines = makeShaderFromFile(GL_FRAGMENT_SHADER, "fragShaderLines.frag");
-
-	//Link the vertex and fragment shader
-	try
-	{
-		lineProgram = glutil::LinkProgram(vertShaderLines, fragShaderLines);
-	}
-	catch (glutil::CompileLinkException e)
-	{
-		//NOTE: Should probably move this to an error log rather than a message box for release.
-		MessageBox(0, e.what(), "Error", 0);
-	}
-
-	//Check the program linking status
-	glGetProgramiv(lineProgram, GL_LINK_STATUS, &didLink);
-
-	if (didLink == GL_TRUE)
-	{
-		//		MessageBox(0, "Linking Successful", "Error", 0);
-	}
-	else
-	{
-		//If the program didn't link, get errors information and display error message.
-		//NOTE: Should probably move this to an error log rather than a message box for release.
-		MessageBox(0, "Linking Error", "Error", 0);
-		glGetProgramiv(lineProgram, GL_INFO_LOG_LENGTH, &logLength);
-		infoLog = new char[logLength + 10];
-		glGetProgramInfoLog(lineProgram, logLength + 10, 0, infoLog);
-		MessageBox(0, infoLog, "Error", 0);
-		delete[] infoLog;
-	}
-
-	doErrorCheck();
-
-	//Get the uniform locations for the texture shaders
-	cameraToClipMatrixUniform = glGetUniformLocation(theProgram, "cameraToClipMatrix");
-	modelToCameraMatrixUniform = glGetUniformLocation(theProgram, "modelToCameraMatrix");
-	cubeTextureUniform = glGetUniformLocation(theProgram, "cubeTexture");
-
-	//Get the uniform locations for the color shaders
-	colorCameraToClipMatrixUniform = glGetUniformLocation(lineProgram, "cameraToClipMatrix");
-	colorModelToCameraMatrixUniform = glGetUniformLocation(lineProgram, "modelToCameraMatrix");
-
-	//initialize cube texture count
-	cubeTextureCount = 0;
-
-	doErrorCheck();
-	//That using program
-	glUseProgram(theProgram);
-	//Upload camera to clip matrix
-	glUniformMatrix4fv(cameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
-	glUniformMatrix4fv(colorCameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
-	//Set cube texture uniform
-	glUniform1i(cubeTextureUniform, 0);
-	//Set cubeSampler
-	glGenSamplers(1, &cubeSampler);
-
-	//Low anisotropic
-	glSamplerParameteri(cubeSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glSamplerParameteri(cubeSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glSamplerParameterf(cubeSampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4.0f);
-
-	doErrorCheck();
-
-	//Initialize everything for textToScreen function
-	unsigned int asciiTextureWidth, asciiTextureHeight;
-	vector<unsigned char> asciiTextureData;
-
-	//Load the font data
-	lodepng::decode(asciiTextureData, asciiTextureWidth, asciiTextureHeight, "ASCII.png");
-
-	doErrorCheck();
-	//Allocate a texture name
-	glGenTextures(1, &ASCIItexture);
-	doErrorCheck();
-
-	//Bind the texture
-	glBindTexture(GL_TEXTURE_2D_ARRAY, ASCIItexture);
-	doErrorCheck();
-	//Setup texture parameters
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	doErrorCheck();
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	doErrorCheck();
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	doErrorCheck();
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	doErrorCheck();
-	//Upload texture to openGL
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, asciiTextureWidth, asciiTextureHeight / 95, 95, 0, GL_RGBA, GL_UNSIGNED_BYTE, &asciiTextureData[0]);
-	doErrorCheck();
-
-	//Setup VAO and Buffer for ASCII texture
-	glGenVertexArrays(1, &ASCIIVAO);
-	glBindVertexArray(ASCIIVAO);
-
-	doErrorCheck();
-	glGenBuffers(1, &ASCIIBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, ASCIIBuffer);
-	glBufferData(GL_ARRAY_BUFFER, 1, 0, GL_DYNAMIC_DRAW);
-
-	doErrorCheck();
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 16, 0);
-	glVertexAttribPointer(1, 1, GL_UNSIGNED_BYTE, GL_FALSE, 16, (void *)(offsetof(TexturedVertex, texture)));
-	glVertexAttribPointer(2, 2, GL_UNSIGNED_BYTE, GL_TRUE, 16, (void *)(offsetof(TexturedVertex, textureX)));
+	glFrontFace(GL_CCW);
 
 	doErrorCheck();
 
@@ -427,6 +262,8 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 	glUniformMatrix4fv(cameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
 	glUseProgram(lineProgram);
 	glUniformMatrix4fv(colorCameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
+
+	doErrorCheck();
 }
 
 GraphicsEngine::~GraphicsEngine()
@@ -484,9 +321,9 @@ float GraphicsEngine::getScreenRatio() const
 void GraphicsEngine::setPOV(double x, double y, double z, float angDegZ, float angDegX)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	PoVX = x;
-	PoVY = z;
-	PoVZ = y;
+	PoV.x = x;
+	PoV.y = z;
+	PoV.z = y;
 	rotationY = angDegZ;
 	rotationX = angDegX;
 }
@@ -494,19 +331,19 @@ void GraphicsEngine::setPOV(double x, double y, double z, float angDegZ, float a
 double GraphicsEngine::getPoVX() const
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoVX;
+	return PoV.x;
 }
 
 double GraphicsEngine::getPoVY() const
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoVY;
+	return PoV.y;
 }
 
 double GraphicsEngine::getPoVZ() const
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoVZ;
+	return PoV.z;
 }
 
 float GraphicsEngine::getRotationY() const
@@ -575,6 +412,11 @@ bool GraphicsEngine::doErrorCheck()
 	}
 }
 
+void GraphicsEngine::prepProgram(ShaderProgram* program)
+{
+
+}
+
 void GraphicsEngine::prepStandardProgramDraw(const float* matrix, unsigned int VAO)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
@@ -633,7 +475,7 @@ void GraphicsEngine::drawCylinder(Vec3<double> baseCoord, double radius, double 
 	glutil::MatrixStack myStack;
 	myStack.RotateX((float)rotationX);
 	myStack.RotateY((float)rotationY);
-	myStack.Translate((float)(-PoVX + baseCoord.x), (float)(-PoVY + baseCoord.z), (float)(-PoVZ + baseCoord.y));
+	myStack.Translate((float)(-PoV.x + baseCoord.x), (float)(-PoV.y + baseCoord.z), (float)(-PoV.z + baseCoord.y));
 	myStack.Scale((float)radius, (float)height, (float)radius);
 
 	//Use the program

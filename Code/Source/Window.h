@@ -16,8 +16,8 @@ class Window
 {
 private:
 	//Hidden Data. Uses reinterpret_cast in Window.cpp to get access to actual data.
-	struct HData { char data[92]; };
-	HData hData;
+	struct Pimpl;
+	Pimpl* pimpl;
 	PlayerView* playerView;
 	string className;
 	bool fullScreen;

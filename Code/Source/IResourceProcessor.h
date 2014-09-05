@@ -20,7 +20,7 @@ class IResourceProcessor
 public:
 	virtual string getPattern() = 0;
 	virtual bool checkRawFile(shared_ptr<ResourceHandle> resource) = 0;
-	virtual shared_ptr<ResourceHandle> processResource(shared_ptr<ResourceHandle> resource) = 0;
+	virtual bool processResource(shared_ptr<ResourceHandle> resource) = 0;
 };
 
 #endif

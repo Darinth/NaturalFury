@@ -19,17 +19,13 @@ class ResourceCache;
 class ResourceHandle : Lockable
 {
 private:
-	string name;
-	char* resource;
-	unsigned int resourceSize;
-	ResourceCache *resourceCache;
 public:
 	ResourceHandle(string name, char* resource, unsigned int resourceSize, ResourceCache *resourceCache);
 	virtual ~ResourceHandle();
-	const char * const getResource() const
-	{
-		return resource;
-	};
+	const string name;
+	ResourceCache * const resourceCache;
+	char* resource;
+	unsigned int resourceSize;
 };
 
 #endif

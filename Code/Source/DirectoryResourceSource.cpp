@@ -148,7 +148,7 @@ int DirectoryResourceSource::getRawResource(const string &resource, char * buffe
 	if (fileList.count(resource) == 1)
 	{
 		//Use fstream's read method to read all of the contents of the file into the buffer
-		fstream file(directory + "//" + resource);
+		fstream file(directory + "//" + resource, ios::binary | ios::in);
 		file.read(buffer, fileList.at(resource));
 		//Return size of file
 		return fileList.at(resource);

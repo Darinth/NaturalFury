@@ -105,7 +105,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	if (allocLog.length() > 0)
 	{
-		staticLog("AllocLog.log", allocLog, LogLevel::Warning);
+		staticLog("AllocLog.log", allocLog, LogLevel::Error);
 	}
 
 	//return the quit message parameter

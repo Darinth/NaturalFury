@@ -4,9 +4,7 @@
 // Implementation file for Window class
 // Notes:
 // OS-Aware
-// The Window class uses a variant of the pimpl idiom.
-// The struct HData(Hidden Data) is the same length as the struct PData(Private Data).
-// hData is reinterpret cast into a pData to allow the application to keep data hidden without requiring additional memory allocation, memory deallocation, or pointer dereferencing.
+// The Window class uses the pimpl idiom to avoid polution of windows header files into the rest of the project.
 
 #include "CustomMemory.h"
 
@@ -18,6 +16,14 @@ using namespace std;
 #include "Window.h"
 #include "KeyEnum.h"
 #include "PlayerView.h"
+
+//Includes for graphics engine testing
+#include "GraphicsEngine.h"
+#include "ShaderProgram.h"
+#include "MasterDirectoryResourceSource.h"
+#include "ResourceCache.h"
+#include "ResourceHandle.h"
+#include "StringResourceProcessor.h"
 
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
@@ -31,23 +37,16 @@ KeyEnum translations[256] = { KeyEnum::Invalid };
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 Window* appWindow;
 
-//If this structure is modified, you must modify the size of HData in Window.h to match the size of this structure.
-//Static asserts in Window constructor can help determine size if you aren't able to determine correct size.
-struct PData
+struct Window::Pimpl
 {
 	HWND windowHandle;
+	HDC deviceContext;
 	PIXELFORMATDESCRIPTOR pixelFormatDescriptor;
 	WNDCLASSEX windowClass;
 };
 
-//Macro to assist in casting of hData into PData.
-#define pData (*reinterpret_cast<PData*>(&hData))
-
 Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits)
 {
-	//Make sure that PData and HData are the same size. No memory corruption, thank you.
-	static_assert(sizeof(HData) >= sizeof(PData), "HData size to small!");
-	static_assert(sizeof(HData) <= sizeof(PData), "HData size to large!");
 	//Store the player view to forward messages to.
 	this->playerView = playerView;
 	//Application only supports single window. If there's a need for multiwindow display, this can be upgraded to support it.
@@ -56,50 +55,52 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	else
 		appWindow = this;
 
+	pimpl = new Pimpl;
+
 	//Prepare pixelFormatDescriptor
-	pData.pixelFormatDescriptor.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-	pData.pixelFormatDescriptor.nVersion = 1;
-	pData.pixelFormatDescriptor.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-	pData.pixelFormatDescriptor.iPixelType = PFD_TYPE_RGBA;
-	pData.pixelFormatDescriptor.cColorBits = 32;
-	pData.pixelFormatDescriptor.cRedBits = 0;
-	pData.pixelFormatDescriptor.cRedShift = 0;
-	pData.pixelFormatDescriptor.cGreenBits = 0;
-	pData.pixelFormatDescriptor.cGreenShift = 0;
-	pData.pixelFormatDescriptor.cBlueBits = 0;
-	pData.pixelFormatDescriptor.cBlueShift = 0;
-	pData.pixelFormatDescriptor.cAlphaBits = 0;
-	pData.pixelFormatDescriptor.cAlphaShift = 0;
-	pData.pixelFormatDescriptor.cAccumBits = 0;
-	pData.pixelFormatDescriptor.cAccumRedBits = 0;
-	pData.pixelFormatDescriptor.cAccumGreenBits = 0;
-	pData.pixelFormatDescriptor.cAccumBlueBits = 0;
-	pData.pixelFormatDescriptor.cAccumAlphaBits = 0;
-	pData.pixelFormatDescriptor.cDepthBits = 32;
-	pData.pixelFormatDescriptor.cStencilBits = 0;
-	pData.pixelFormatDescriptor.cAuxBuffers = 0;
-	pData.pixelFormatDescriptor.iLayerType = PFD_MAIN_PLANE;
-	pData.pixelFormatDescriptor.bReserved = 0;
-	pData.pixelFormatDescriptor.dwLayerMask = 0;
-	pData.pixelFormatDescriptor.dwVisibleMask = 0;
-	pData.pixelFormatDescriptor.dwDamageMask = 0;
+	pimpl->pixelFormatDescriptor.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+	pimpl->pixelFormatDescriptor.nVersion = 1;
+	pimpl->pixelFormatDescriptor.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+	pimpl->pixelFormatDescriptor.iPixelType = PFD_TYPE_RGBA;
+	pimpl->pixelFormatDescriptor.cColorBits = 32;
+	pimpl->pixelFormatDescriptor.cRedBits = 0;
+	pimpl->pixelFormatDescriptor.cRedShift = 0;
+	pimpl->pixelFormatDescriptor.cGreenBits = 0;
+	pimpl->pixelFormatDescriptor.cGreenShift = 0;
+	pimpl->pixelFormatDescriptor.cBlueBits = 0;
+	pimpl->pixelFormatDescriptor.cBlueShift = 0;
+	pimpl->pixelFormatDescriptor.cAlphaBits = 0;
+	pimpl->pixelFormatDescriptor.cAlphaShift = 0;
+	pimpl->pixelFormatDescriptor.cAccumBits = 0;
+	pimpl->pixelFormatDescriptor.cAccumRedBits = 0;
+	pimpl->pixelFormatDescriptor.cAccumGreenBits = 0;
+	pimpl->pixelFormatDescriptor.cAccumBlueBits = 0;
+	pimpl->pixelFormatDescriptor.cAccumAlphaBits = 0;
+	pimpl->pixelFormatDescriptor.cDepthBits = 32;
+	pimpl->pixelFormatDescriptor.cStencilBits = 0;
+	pimpl->pixelFormatDescriptor.cAuxBuffers = 0;
+	pimpl->pixelFormatDescriptor.iLayerType = PFD_MAIN_PLANE;
+	pimpl->pixelFormatDescriptor.bReserved = 0;
+	pimpl->pixelFormatDescriptor.dwLayerMask = 0;
+	pimpl->pixelFormatDescriptor.dwVisibleMask = 0;
+	pimpl->pixelFormatDescriptor.dwDamageMask = 0;
 
 	//Prepare windowClass
-	pData.windowClass.cbSize = sizeof(WNDCLASSEX);
-	pData.windowClass.style = CS_HREDRAW | CS_VREDRAW;
-	pData.windowClass.lpfnWndProc = staticHandleMessage;
-	pData.windowClass.cbClsExtra = 0;
-	pData.windowClass.cbWndExtra = 0;
-	pData.windowClass.hInstance = GetModuleHandle(nullptr);
-	pData.windowClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	pData.windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	pData.windowClass.hbrBackground = NULL;
-	pData.windowClass.lpszMenuName = NULL;
-	pData.windowClass.lpszClassName = className.c_str();
-	pData.windowClass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
+	pimpl->windowClass.cbSize = sizeof(WNDCLASSEX);
+	pimpl->windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	pimpl->windowClass.lpfnWndProc = staticHandleMessage;
+	pimpl->windowClass.cbClsExtra = 0;
+	pimpl->windowClass.cbWndExtra = 0;
+	pimpl->windowClass.hInstance = GetModuleHandle(nullptr);
+	pimpl->windowClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	pimpl->windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	pimpl->windowClass.hbrBackground = NULL;
+	pimpl->windowClass.lpszMenuName = NULL;
+	pimpl->windowClass.lpszClassName = className.c_str();
+	pimpl->windowClass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
 
 	//Register window class
-	if (!RegisterClassEx(&pData.windowClass))
+	if (!RegisterClassEx(&pimpl->windowClass))
 	{
 		throw exception("Failed to register Window class");
 	}
@@ -154,7 +155,7 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	AdjustWindowRectEx(&windowRect, dwStyle, FALSE, dwExStyle);
 
 	/*      Class registerd, so now create our window*/
-	pData.windowHandle = CreateWindowEx(NULL, className.c_str(),  //class name
+	pimpl->windowHandle = CreateWindowEx(NULL, className.c_str(),  //class name
 		title.c_str(),       //app name
 		dwStyle |
 		WS_CLIPCHILDREN |
@@ -168,7 +169,7 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 		NULL);                //no xtra params
 
 	/*      Check if window creation failed (hwnd = null ?)*/
-	if (!pData.windowHandle)
+	if (!pimpl->windowHandle)
 	{
 		throw exception("Window Creation Failed");
 	}
@@ -177,8 +178,26 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	Rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
 	Rid[0].dwFlags = RIDEV_INPUTSINK;
-	Rid[0].hwndTarget = pData.windowHandle;
+	Rid[0].hwndTarget = pimpl->windowHandle;
 	RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
+
+	pimpl->deviceContext = GetDC(pimpl->windowHandle);
+
+	GraphicsEngine graphicsEngine(pimpl->deviceContext);
+
+	MasterDirectoryResourceSource mdrs(".");
+
+	mdrs.open();
+
+	ResourceCache resourceCache(1024 * 1024 * 100, &mdrs);
+	resourceCache.registerProcessor(shared_ptr<IResourceProcessor>(new StringResourceProcessor));
+
+	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("TextureShader.vert");
+	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("TextureShader.frag");
+
+	ShaderProgram shader(&graphicsEngine, vertShader, fragShader);
+
+	graphicsEngine.relinquish();
 }
 
 Window::~Window()
@@ -190,6 +209,8 @@ Window::~Window()
 	}
 
 	appWindow = nullptr;
+
+	delete pimpl;
 }
 
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -219,10 +240,10 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 			int nPixelFormat;
 
 			/*      Choose best matching format*/
-			nPixelFormat = ChoosePixelFormat(deviceContext, &(pData.pixelFormatDescriptor));
+			nPixelFormat = ChoosePixelFormat(deviceContext, &(pimpl->pixelFormatDescriptor));
 
 			/*      Set the pixel format to the device context*/
-			SetPixelFormat(deviceContext, nPixelFormat, &(pData.pixelFormatDescriptor));
+			SetPixelFormat(deviceContext, nPixelFormat, &(pimpl->pixelFormatDescriptor));
 
 			/*      Create rendering context and make it current
 			*/
@@ -316,6 +337,6 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 
 void Window::show()
 {
-	ShowWindow(pData.windowHandle, SW_SHOW);      //display window
-	UpdateWindow(pData.windowHandle);             //update window
+	ShowWindow(pimpl->windowHandle, SW_SHOW);      //display window
+	UpdateWindow(pimpl->windowHandle);             //update window
 }

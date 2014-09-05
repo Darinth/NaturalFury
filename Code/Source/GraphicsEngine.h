@@ -13,11 +13,12 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+using namespace std;
+
 #include <glload/gl_3_3.h>
 #include <glload/gll.h>
 #include <glutil/glutil.h>
 #include <glm/glm.hpp>
-using namespace std;
 
 #include "Vec3.h"
 #include "TexturedTriangle.h"
@@ -27,7 +28,10 @@ using namespace std;
 extern const TexturedTriangle cubeVertices[];
 //Vertices used for drawing a cylinder
 extern const TexturedVertex cylinderVertices[];
+
 class ThreadSafeFstream;
+class ShaderProgram;
+
 class GraphicsEngine : public Lockable
 {
 private:
@@ -44,9 +48,7 @@ private:
 	float screenRatio;   //Aspect ratio of viewport
 
 	//Point of view variables. X, Y, Z coordinates and rotations around X and Y axis.
-	double PoVX;
-	double PoVY;
-	double PoVZ;
+	Vec3<double> PoV;
 	float rotationY;
 	float rotationX;
 
@@ -134,6 +136,8 @@ public:
 	float getRotationY() const;
 	float getRotationX() const;
 	bool doErrorCheck();
+
+	void prepProgram(ShaderProgram* program);
 
 	//Preps OpenGL to perform drawing using the given model to camera matrix and VAO.
 	void prepStandardProgramDraw(const float* matrix, unsigned int VAO);

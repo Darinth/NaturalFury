@@ -34,9 +34,6 @@ private:
 	shared_ptr<ResourceHandle> load(const string &resource);
 	bool makeRoom(unsigned int size);
 	bool freeOneResource();
-	char *allocate(unsigned int size);
-	//Tells the ResourceCache that memory was released. Used by ResourceHandle to inform the ResourceCache when it is destroyed.
-	void memoryReleased(unsigned int size);
 
 	friend class ResourceHandle;
 
@@ -55,6 +52,10 @@ public:
 	void preLoad(const string &resourceName);
 	//Gets rid of all of the shared_ptrs to handles
 	void flush();
+
+	char *allocate(unsigned int size);
+	//Tells the ResourceCache that memory was released. Used by ResourceHandle to inform the ResourceCache when it is destroyed.
+	void memoryReleased(unsigned int size);
 };
 
 #endif

@@ -1,5 +1,5 @@
 // Name:
-// GameView.h
+// GameView.cpp
 // Description:
 // Implementation file for GameView class
 // Notes:

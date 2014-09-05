@@ -105,6 +105,8 @@
     <ClCompile Include="..\..\Source\PlayerView.cpp" />
     <ClCompile Include="..\..\Source\ResourceCache.cpp" />
     <ClCompile Include="..\..\Source\ResourceHandle.cpp" />
+    <ClCompile Include="..\..\Source\ShaderProgram.cpp" />
+    <ClCompile Include="..\..\Source\StringResourceProcessor.cpp" />
     <ClCompile Include="..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\Source\ZipResourceSource.cpp" />
   </ItemGroup>
@@ -129,6 +131,8 @@
     <ClInclude Include="..\..\Source\PlayerView.h" />
     <ClInclude Include="..\..\Source\ResourceHandle.h" />
     <ClInclude Include="..\..\Source\ResourceCache.h" />
+    <ClInclude Include="..\..\Source\ShaderProgram.h" />
+    <ClInclude Include="..\..\Source\StringResourceProcessor.h" />
     <ClInclude Include="..\..\Source\TexturedTriangle.h" />
     <ClInclude Include="..\..\Source\TexturedVertex.h" />
     <ClInclude Include="..\..\Source\Vec3.h" />
