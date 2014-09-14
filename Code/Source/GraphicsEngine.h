@@ -13,16 +13,21 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <memory>
+#include <unordered_map>
+#include <stack>
 using namespace std;
 
 #include <glload/gl_3_3.h>
 #include <glload/gll.h>
 #include <glutil/glutil.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "Vec3.h"
 #include "TexturedTriangle.h"
 #include "Lockable.h"
+#include "GraphicsEngineStateVariable.h"
 
 //Triangles used for a typical cube.
 extern const TexturedTriangle cubeVertices[];
@@ -31,6 +36,16 @@ extern const TexturedVertex cylinderVertices[];
 
 class ThreadSafeFstream;
 class ShaderProgram;
+
+enum class StateVariable
+{
+	DepthTest,
+	DepthFunction,
+	CullFace,
+	CullFaceMode,
+	FrontFace,
+	ShaderProgram
+};
 
 class GraphicsEngine : public Lockable
 {
@@ -41,16 +56,20 @@ private:
 	//RenderingContext
 	HGLRC renderingContext;
 
+	//Tracks current parameter states
+	unordered_map < StateVariable, GraphicsEngineStateVariable > parameterStates;
+
+	//Tracks values to be restored to when popEngineState() is called.
+	stack<stack<pair<StateVariable, GraphicsEngineStateVariable>>> stateChangeStack;
+
 	//Variables for setting up camera to clip matrix
 	const float zNear; //Closest visible point
 	const float zFar;  //Furthest visible point
 	const float frustumScale;  //Increases/decreases zoom
 	float screenRatio;   //Aspect ratio of viewport
 
-	//Point of view variables. X, Y, Z coordinates and rotations around X and Y axis.
-	Vec3<double> PoV;
-	float rotationY;
-	float rotationX;
+	//Point of matrix to convert coordinates from world to camera. Multiplied with modelToCamera matrix and then convert to floats before being uploaded to openGL.
+	glm::dmat4 worldToCamera;
 
 	//VAO and Buffer for drawing plain old cylinder.
 	//Used as placeholder for stuff there is no model for yet.
@@ -105,8 +124,11 @@ private:
 	void updateViewport();
 
 	//Disable copy and move constructor.
-	GraphicsEngine(const GraphicsEngine& target);
-	GraphicsEngine(GraphicsEngine&& target);
+	GraphicsEngine(const GraphicsEngine& target) = delete;
+	GraphicsEngine(GraphicsEngine&& target) = delete;
+
+	//Sets opengl state and tracks it so it can be later reverted.
+	void internalSetEngineParameter(StateVariable param, GraphicsEngineStateVariable);
 
 public:
 	//Constructor. Takes a device context.
@@ -128,13 +150,9 @@ public:
 	bool isClaimed();
 
 	//Sets the PoV for standard program drawing
-	void setPOV(double x, double y, double z, float angDegZ, float angDegX);
-	//Getters for PoV variables
-	double getPoVX() const;
-	double getPoVY() const;
-	double getPoVZ() const;
-	float getRotationY() const;
-	float getRotationX() const;
+	void setPOV(double x, double y, double z, double angDegZ, double angDegX);
+
+	//Runs an openGL error check and prints errors to the appLogger.
 	bool doErrorCheck();
 
 	void prepProgram(ShaderProgram* program);
@@ -144,7 +162,7 @@ public:
 	void prepColoredProgramDraw(const float* matrix, unsigned int VAO);
 
 	//Draws a cylinder at the given coordinate with a given radius and height. Triangles is currently ignored, but will eventually specify the number of triangles to use to draw the cylinder sides.
-	void drawCylinder(Vec3<double> baseCoord, double radius, double height, int triangles);
+	void drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles);
 
 	//Clears the screen
 	void clearScreen();
@@ -161,6 +179,15 @@ public:
 	//This function can be called without claiming the context.
 	//Viewport is not updated until the next draw command is issued by a thread that has claimed the GraphicsContext.
 	void setViewport(int sizeX, int sizeY);
+
+	//Used to save/restore the engine state.
+	void pushEngineState();
+	void popEngineState();
+
+	//Sets opengl state and tracks it so it can be later reverted.
+	void setEngineParameter(StateVariable param, GraphicsEngineStateVariable);
+
+	void useProgram(ShaderProgram& shaderProgram);
 };
 
 #endif

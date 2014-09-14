@@ -7,6 +7,8 @@
 
 #include "CustomMemory.h"
 
+#include <memory>
+
 #include <Windows.h>
 #include <string>
 using namespace std;

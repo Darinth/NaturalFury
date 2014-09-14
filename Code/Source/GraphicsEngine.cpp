@@ -15,6 +15,7 @@
 #include "lodepng.h"
 #include "ThreadSafeStream.h"
 #include "ShaderProgram.h"
+#include "GraphicsEngineStateVariable.h"
 
 extern Logger* appLogger;
 
@@ -195,7 +196,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	return shader;
 }
 
-GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), PoV(0.0, 0.0, 0.0), rotationX(0.0f), rotationY(0.0f)
+GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), worldToCamera(1.0)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -239,14 +240,14 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 
 	doErrorCheck();
 	//Enable depth testing
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	internalSetEngineParameter(StateVariable::DepthTest, GraphicsEngineStateVariable(GLboolean(GL_TRUE)));
+	internalSetEngineParameter(StateVariable::DepthFunction, GraphicsEngineStateVariable(GLint(GL_LEQUAL)));
 
 	doErrorCheck();
 	//Enable Face Culling
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glFrontFace(GL_CCW);
+	internalSetEngineParameter(StateVariable::CullFace, GraphicsEngineStateVariable(GLboolean(GL_TRUE)));
+	internalSetEngineParameter(StateVariable::CullFaceMode, GraphicsEngineStateVariable(GLint(GL_BACK)));
+	internalSetEngineParameter(StateVariable::FrontFace, GraphicsEngineStateVariable(GLint(GL_CCW)));
 
 	doErrorCheck();
 
@@ -318,44 +319,14 @@ float GraphicsEngine::getScreenRatio() const
 	return this->screenRatio;
 }
 
-void GraphicsEngine::setPOV(double x, double y, double z, float angDegZ, float angDegX)
+void GraphicsEngine::setPOV(double x, double y, double z, double angDegZ, double angDegX)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	PoV.x = x;
-	PoV.y = z;
-	PoV.z = y;
-	rotationY = angDegZ;
-	rotationX = angDegX;
-}
 
-double GraphicsEngine::getPoVX() const
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoV.x;
-}
-
-double GraphicsEngine::getPoVY() const
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoV.y;
-}
-
-double GraphicsEngine::getPoVZ() const
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	return PoV.z;
-}
-
-float GraphicsEngine::getRotationY() const
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	return rotationY;
-}
-
-float GraphicsEngine::getRotationX() const
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	return rotationX;
+	worldToCamera = glm::dmat4();
+	glm::gtc::matrix_transform::rotate(worldToCamera, angDegX, glm::dvec3(1, 0, 0));
+	glm::gtc::matrix_transform::rotate(worldToCamera, angDegZ, glm::dvec3(0, 1, 0));
+	glm::gtc::matrix_transform::translate(worldToCamera, glm::dvec3(x, y, z));
 }
 
 bool GraphicsEngine::isClaimed()
@@ -460,7 +431,7 @@ void GraphicsEngine::prepColoredProgramDraw(const float* matrix, unsigned int VA
 	doErrorCheck();
 }
 
-void GraphicsEngine::drawCylinder(Vec3<double> baseCoord, double radius, double height, int triangles)
+void GraphicsEngine::drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
@@ -472,17 +443,13 @@ void GraphicsEngine::drawCylinder(Vec3<double> baseCoord, double radius, double 
 		return;
 
 	//Setup modelToCamera matrix
-	glutil::MatrixStack myStack;
-	myStack.RotateX((float)rotationX);
-	myStack.RotateY((float)rotationY);
-	myStack.Translate((float)(-PoV.x + baseCoord.x), (float)(-PoV.y + baseCoord.z), (float)(-PoV.z + baseCoord.y));
-	myStack.Scale((float)radius, (float)height, (float)radius);
+	glm::mat4 modelToCamera(modelToWorld * worldToCamera);
 
 	//Use the program
 	glUseProgram(theProgram);
 
 	//Upload modelToCamera matrix
-	glUniformMatrix4fv(modelToCameraMatrixUniform, 1, GL_FALSE, glm::value_ptr(myStack.Top()));
+	glUniformMatrix4fv(modelToCameraMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelToCamera));
 
 	//bind cylinder VAO
 	glBindVertexArray(cylinderVAO);
@@ -693,4 +660,97 @@ void GraphicsEngine::updateViewport()
 	glUniformMatrix4fv(colorCameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
 	//Turn off viewport update needed
 	viewportUpdateNeeded = false;
+}
+
+void GraphicsEngine::pushEngineState()
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to pushEngineState while context not active");
+
+	stateChangeStack.emplace();
+}
+
+void GraphicsEngine::popEngineState()
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to popEngineState while context not active");
+
+	if (stateChangeStack.empty())
+		throw exception("Attempt to pop engine state with empty stack");
+
+	stack<pair<StateVariable, GraphicsEngineStateVariable>>& stateReversions = stateChangeStack.top();
+	while (!stateReversions.empty())
+	{
+		pair<StateVariable, GraphicsEngineStateVariable>& reversion = stateReversions.top();
+		internalSetEngineParameter(reversion.first, reversion.second);
+		stateReversions.pop();
+	}
+	stateChangeStack.pop();
+}
+
+void GraphicsEngine::internalSetEngineParameter(StateVariable param, GraphicsEngineStateVariable value)
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to setEngineParameter while context not active");
+
+	VariableType varType = value.getType();
+
+	if (varType == VariableType::Bool)
+	{
+		if (param == StateVariable::DepthTest)
+		{
+			if (value.getBool() == GL_TRUE)
+				glEnable(GL_DEPTH_TEST);
+			else
+				glDisable(GL_DEPTH_TEST);
+		}
+		else if (param == StateVariable::CullFace)
+		{
+			if (value.getBool() == GL_TRUE)
+				glEnable(GL_CULL_FACE);
+			else
+				glDisable(GL_CULL_FACE);
+		}
+		else
+			throw exception("setEngineParameter called with invalid param/value combination");
+	}
+	else if (varType == VariableType::Int)
+	{
+		if (param == StateVariable::DepthFunction)
+			glDepthFunc(value.getInt());
+		else if (param == StateVariable::CullFaceMode)
+			glCullFace(value.getInt());
+		else if (param == StateVariable::FrontFace)
+			glFrontFace(value.getInt());
+		else if (param == StateVariable::ShaderProgram)
+			glUseProgram(value.getInt());
+		else
+			throw exception("setEngineParameter called with invalid param/value combination");
+	}
+	else
+		throw exception("setEngineParameter called with invalid value");
+
+	parameterStates[param] = value;
+}
+
+void GraphicsEngine::setEngineParameter(StateVariable param, GraphicsEngineStateVariable value)
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to setEngineParameter while context not active");
+
+	if (parameterStates.count(param) == 1 && !stateChangeStack.empty())
+	{
+		stateChangeStack.top().push(pair<StateVariable, GraphicsEngineStateVariable>(param, parameterStates[param]));
+	}
+
+	internalSetEngineParameter(param, value);
+}
+
+void GraphicsEngine::useProgram(ShaderProgram& shaderProgram)
+{
+	setEngineParameter(StateVariable::ShaderProgram, GraphicsEngineStateVariable((GLint)shaderProgram.shaderProgram));
 }

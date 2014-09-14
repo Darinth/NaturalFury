@@ -94,6 +94,7 @@
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
     <ClCompile Include="..\..\Source\GraphicsEngine.cpp" />
+    <ClCompile Include="..\..\Source\GraphicsEngineState.cpp" />
     <ClCompile Include="..\..\Source\lodepng.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
     <ClCompile Include="..\..\Source\MasterDirectoryResourceSource.cpp" />
@@ -117,11 +118,14 @@
     <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
     <ClInclude Include="..\..\Source\GraphicsEngine.h" />
+    <ClInclude Include="..\..\Source\GraphicsEngineState.h" />
+    <ClInclude Include="..\..\Source\GraphicsEngineStateVariable.h" />
     <ClInclude Include="..\..\Source\IResourceProcessor.h" />
     <ClInclude Include="..\..\Source\IResourceSource.h" />
     <ClInclude Include="..\..\Source\lodepng.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h" />
+    <ClInclude Include="..\..\Source\Model.h" />
     <ClInclude Include="..\..\Source\Process.h" />
     <ClInclude Include="..\..\Source\GameEngine.h" />
     <ClInclude Include="..\..\Source\GameView.h" />
