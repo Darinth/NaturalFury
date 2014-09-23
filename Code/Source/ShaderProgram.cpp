@@ -23,10 +23,10 @@ using namespace std;
 
 extern Logger* appLogger;
 
-ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<ResourceHandle> vertexShader, shared_ptr<ResourceHandle> fragmentShader)
+ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<ResourceHandle> vertexShader, shared_ptr<ResourceHandle> fragmentShader) : graphicsEngine(graphicsEngine)
 {
 	if (!graphicsEngine->isClaimed())
-		throw exception("Attempt to create a ShaderProgram with unclaimed GraphicsEngine");
+		throw exception("Attempt to construct a ShaderProgram with unclaimed GraphicsEngine");
 
 	//Comile vertex shader
 	GLuint vertShader;
@@ -86,9 +86,15 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	cameraToClipMatrixUniform = glGetUniformLocation(shaderProgram, "cameraToClipMatrix");
 	modelToCameraMatrixUniform = glGetUniformLocation(shaderProgram, "modelToCameraMatrix");
 	cubeTextureUniform = glGetUniformLocation(shaderProgram, "cubeTexture");
+
+	glDeleteShader(vertShader);
+	glDeleteShader(fragShader);
 }
 
 ShaderProgram::~ShaderProgram()
 {
-	//Remove program from openGL
+	if (!graphicsEngine->isClaimed())
+		throw exception("Attempt to deconstruct a ShaderProgram with unclaimed GraphicsEngine");
+
+	glDeleteProgram(shaderProgram);
 }

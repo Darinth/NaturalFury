@@ -79,7 +79,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		//If we exited the tick loop due to having maxed out the tick counter, write a warning to the log.
 		if(ticksThisLoop >= 30)
 		{
-			//*getLog(LogEnum::ERR) << "WARNING: Processor is having trouble keeping up with game rate." << endl;
+			appLogger->eWriteLog("WARNING: Processor is having trouble keeping up with game rate.", LogLevel::Warning, {});
 		}
 
 		//While there are messages to be processed...

@@ -6,8 +6,8 @@
 // OS-Unaware
 // A TexturedTriangle contains three textured vertices that represent the points of the triangle.
 
-#ifndef TEXTUREDTRIANGLE_H
-#define TEXTUREDTRIANGLE_H
+#ifndef TEXTURED_TRIANGLE_H
+#define TEXTURED_TRIANGLE_H
 
 #include "TexturedVertex.h"
 #include "Vec3.h"

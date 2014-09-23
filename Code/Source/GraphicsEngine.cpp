@@ -6,6 +6,8 @@
 // OS-Aware
 // See GraphicsEngine.h for class usage details
 
+#include "CustomMemory.h"
+
 #include <thread>
 #include <fstream>
 #include <sstream>
@@ -27,112 +29,106 @@ extern const TexturedTriangle cubeVertices[] =
 {
 	// Top
 	{
-		{ Vec3<float>(1.0f, 1.0f, 1.0f), 0, 255, 255 },
-		{ Vec3<float>(1.0f, 1.0f, 0.0f), 0, 255, 0 },
-		{ Vec3<float>(0.0f, 1.0f, 1.0f), 0, 0, 255 }
+		{ Vec3<float>(1.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 255, 255 },
+		{ Vec3<float>(1.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 255, 0 },
+		{ Vec3<float>(0.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 0, 255 }
 	},
-
 	{
-		{ Vec3<float>(0.0f, 1.0f, 0.0f), 0, 0, 255 },
-		{ Vec3<float>(0.0f, 1.0f, 1.0f), 0, 0, 0 },
-		{ Vec3<float>(1.0f, 1.0f, 0.0f), 0, 255, 255 }
+		{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 0, 255 },
+		{ Vec3<float>(0.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 0, 0 },
+		{ Vec3<float>(1.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 0, 255, 255 }
 	},
 
 	// Front
 	{
-		{ Vec3<float>(1.0f, 1.0f, 0.0f), 1, 255, 0 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 1, 255, 255 },
-		{ Vec3<float>(0.0f, 1.0f, 0.0f), 1, 0, 0 }
+		{ Vec3<float>(1.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 255, 0 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 255, 255 },
+		{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 0 }
 	},
-
 	{
-		{ Vec3<float>(0.0f, 0.0f, 0.0f), 1, 0, 255 },
-		{ Vec3<float>(0.0f, 1.0f, 0.0f), 1, 0, 0 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 1, 255, 255 }
+		{ Vec3<float>(0.0f, 0.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 255 },
+		{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 0 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 255, 255 }
 	},
 
 	// Right
 	{
-		{ Vec3<float>(1.0f, 1.0f, 0.0f), 2, 0, 0 },
-		{ Vec3<float>(1.0f, 1.0f, 1.0f), 2, 255, 0 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 2, 0, 255 }
+		{ Vec3<float>(1.0f, 1.0f, 0.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 0, 0 },
+		{ Vec3<float>(1.0f, 1.0f, 1.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 255, 0 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 0, 255 }
 	},
-
 	{
-		{ Vec3<float>(1.0f, 0.0f, 1.0f), 2, 255, 255 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 2, 0, 255 },
-		{ Vec3<float>(1.0f, 1.0f, 1.0f), 2, 255, 0 }
+		{ Vec3<float>(1.0f, 0.0f, 1.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 255, 255 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 0, 255 },
+		{ Vec3<float>(1.0f, 1.0f, 1.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 2, 255, 0 }
 	},
 
 	// Back
 	{
-		{ Vec3<float>(1.0f, 1.0f, 1.0f), 3, 0, 0 },
-		{ Vec3<float>(0.0f, 1.0f, 1.0f), 3, 255, 0 },
-		{ Vec3<float>(1.0f, 0.0f, 1.0f), 3, 0, 255 }
+		{ Vec3<float>(1.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 0, 0 },
+		{ Vec3<float>(0.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 255, 0 },
+		{ Vec3<float>(1.0f, 0.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 0, 255 }
 	},
-
 	{
-		{ Vec3<float>(0.0f, 0.0f, 1.0f), 3, 255, 255 },
-		{ Vec3<float>(1.0f, 0.0f, 1.0f), 3, 0, 255 },
-		{ Vec3<float>(0.0f, 1.0f, 1.0f), 3, 255, 0 }
+		{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 255, 255 },
+		{ Vec3<float>(1.0f, 0.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 0, 255 },
+		{ Vec3<float>(0.0f, 1.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 3, 255, 0 }
 	},
 
 	// Left
 	{
-		{ Vec3<float>(0.0f, 1.0f, 1.0f), 4, 0, 0 },
-		{ Vec3<float>(0.0f, 1.0f, 0.0f), 4, 255, 0 },
-		{ Vec3<float>(0.0f, 0.0f, 1.0f), 4, 0, 255 }
+		{ Vec3<float>(0.0f, 1.0f, 1.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 0, 0 },
+		{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 255, 0 },
+		{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 0, 255 }
 	},
-
 	{
-		{ Vec3<float>(0.0f, 0.0f, 0.0f), 4, 255, 255 },
-		{ Vec3<float>(0.0f, 0.0f, 1.0f), 4, 0, 255 },
-		{ Vec3<float>(0.0f, 1.0f, 0.0f), 4, 255, 0 }
+		{ Vec3<float>(0.0f, 0.0f, 0.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 255, 255 },
+		{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 0, 255 },
+		{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 4, 255, 0 }
 	},
 
 	// Bottom
 	{
-		{ Vec3<float>(1.0f, 0.0f, 1.0f), 5, 255, 255 },
-		{ Vec3<float>(0.0f, 0.0f, 1.0f), 5, 0, 255 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 5, 255, 0 }
+		{ Vec3<float>(1.0f, 0.0f, 1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 255, 255 },
+		{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 0, 255 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 255, 0 }
 	},
-
 	{
-		{ Vec3<float>(0.0f, 0.0f, 0.0f), 5, 0, 0 },
-		{ Vec3<float>(1.0f, 0.0f, 0.0f), 5, 255, 0 },
-		{ Vec3<float>(0.0f, 0.0f, 1.0f), 5, 0, 255 }
+		{ Vec3<float>(0.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 0, 0 },
+		{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 255, 0 },
+		{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 5, 0, 255 }
 	}
 };
 
 extern const TexturedVertex cylinderVertices[] =
 {
 	// Vertices for exterior of cylinder
-	{ Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
-	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(-1.0f, 0.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(-0.70710678f, 1.0f, -0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 0 },
-	{ Vec3<float>(0.70710678f, 1.0f, -0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(1.0f, 0.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
-	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
+	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), Vec3<float>(-0.70710678f, 0.0f, 0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(-1.0f, 0.0f, 0.0f), Vec3<float>(-1.0f, 0.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(-0.70710678f, 1.0f, -0.70710678f), Vec3<float>(-0.70710678f, 0.0f, -0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(0.0f, 0.0f, -1.0f), Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 0 },
+	{ Vec3<float>(0.70710678f, 1.0f, -0.70710678f), Vec3<float>(0.70710678f, 0.0f, -0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(1.0f, 0.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(0.70710678f, 1.0f, 0.70710678f), Vec3<float>(0.70710678f, 0.0f, 0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
+	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), Vec3<float>(-0.70710678f, 0.0f, 0.70710678f), 1, 128, 255 },
 
 	// Vertices for top of cylinder
-	{ Vec3<float>(0.0f, 1.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(0.70710678f, 1.0f, -0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(-0.70710678f, 1.0f, -0.70710678f), 1, 128, 255 },
-	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), 1, 128, 255 },
+	{ Vec3<float>(0.0f, 1.0f, 0.0f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 128, 255 },
+	{ Vec3<float>(0.70710678f, 1.0f, 0.70710678f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 128, 255 },
+	{ Vec3<float>(0.70710678f, 1.0f, -0.70710678f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 128, 255 },
+	{ Vec3<float>(-0.70710678f, 1.0f, -0.70710678f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 128, 255 },
+	{ Vec3<float>(-0.70710678f, 1.0f, 0.70710678f), Vec3<float>(0.0f, 1.0f, 0.0f), 1, 128, 255 },
 
 	// Vertices for bottom of cylinder
-	{ Vec3<float>(0.0f, 0.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
-	{ Vec3<float>(-1.0f, 0.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(0.0f, 0.0f, -1.0f), 1, 0, 0 },
-	{ Vec3<float>(1.0f, 0.0f, 0.0f), 1, 0, 0 },
-	{ Vec3<float>(0.0f, 0.0f, 1.0f), 1, 0, 0 },
+	{ Vec3<float>(0.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(-1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(0.0f, 0.0f, -1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(1.0f, 0.0f, 0.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
+	{ Vec3<float>(0.0f, 0.0f, 1.0f), Vec3<float>(0.0f, -1.0f, 0.0f), 1, 0, 0 },
 };
 
 bool loadGraphicsFunctions()
@@ -187,7 +183,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	}
 	catch (glutil::CompileLinkException e)
 	{
-		MessageBox(0, e.what(), "Error", 0);
+		appLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
 	}
 
 	delete fileText;
@@ -742,12 +738,11 @@ void GraphicsEngine::setEngineParameter(StateVariable param, GraphicsEngineState
 	if (!isClaimed())
 		throw exception("Request to setEngineParameter while context not active");
 
-	if (parameterStates.count(param) == 1 && !stateChangeStack.empty())
-	{
+	if (parameterStates.count(param) == 1 && parameterStates[param] != value && !stateChangeStack.empty())
 		stateChangeStack.top().push(pair<StateVariable, GraphicsEngineStateVariable>(param, parameterStates[param]));
-	}
 
-	internalSetEngineParameter(param, value);
+	if (parameterStates.count(param) == 0 || (parameterStates.count(param) == 1 && parameterStates[param] != value))
+		internalSetEngineParameter(param, value);
 }
 
 void GraphicsEngine::useProgram(ShaderProgram& shaderProgram)

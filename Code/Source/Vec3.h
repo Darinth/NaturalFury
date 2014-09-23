@@ -6,8 +6,8 @@
 // OS-Unaware
 // A vector, of the mathematical type.
 
-#ifndef SPATIALVECTOR_H
-#define SPATIALVECTOR_H
+#ifndef VEC_3_H
+#define VEC_3_H
 
 #include <exception>
 using namespace std;

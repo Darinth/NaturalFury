@@ -2,6 +2,7 @@
 #extension GL_EXT_texture_array: enable
 
 in vec3 colorCoord;
+in vec4 normal;
 
 uniform sampler2DArray cubeTexture;
 

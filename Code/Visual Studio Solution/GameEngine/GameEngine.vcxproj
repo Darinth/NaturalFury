@@ -90,6 +90,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Source\AllocMap.cpp" />
+    <ClCompile Include="..\..\Source\CubeModel.cpp" />
     <ClCompile Include="..\..\Source\CustomMemory.cpp" />
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
     <ClCompile Include="..\..\Source\EngineMsg.cpp" />
@@ -104,8 +105,10 @@
     <ClCompile Include="..\..\Source\LocalPlayerView.cpp" />
     <ClCompile Include="..\..\Source\Main.cpp" />
     <ClCompile Include="..\..\Source\PlayerView.cpp" />
+    <ClCompile Include="..\..\Source\RAIIController.h" />
     <ClCompile Include="..\..\Source\ResourceCache.cpp" />
     <ClCompile Include="..\..\Source\ResourceHandle.cpp" />
+    <ClCompile Include="..\..\Source\SceneNode.cpp" />
     <ClCompile Include="..\..\Source\ShaderProgram.cpp" />
     <ClCompile Include="..\..\Source\StringResourceProcessor.cpp" />
     <ClCompile Include="..\..\Source\Window.cpp" />
@@ -113,7 +116,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\AllocMap.h" />
+    <ClInclude Include="..\..\Source\ColoredTriangle.h" />
     <ClInclude Include="..\..\Source\ColoredVertex.h" />
+    <ClInclude Include="..\..\Source\CubeModel.h" />
     <ClInclude Include="..\..\Source\CustomMemory.h" />
     <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
@@ -122,6 +127,7 @@
     <ClInclude Include="..\..\Source\GraphicsEngineStateVariable.h" />
     <ClInclude Include="..\..\Source\IResourceProcessor.h" />
     <ClInclude Include="..\..\Source\IResourceSource.h" />
+    <ClInclude Include="..\..\Source\ISceneNode.h" />
     <ClInclude Include="..\..\Source\lodepng.h" />
     <ClInclude Include="..\..\Source\Logger.h" />
     <ClInclude Include="..\..\Source\MasterDirectoryResourceSource.h" />
@@ -135,6 +141,8 @@
     <ClInclude Include="..\..\Source\PlayerView.h" />
     <ClInclude Include="..\..\Source\ResourceHandle.h" />
     <ClInclude Include="..\..\Source\ResourceCache.h" />
+    <ClInclude Include="..\..\Source\Scene.h" />
+    <ClInclude Include="..\..\Source\SceneNode.h" />
     <ClInclude Include="..\..\Source\ShaderProgram.h" />
     <ClInclude Include="..\..\Source\StringResourceProcessor.h" />
     <ClInclude Include="..\..\Source\TexturedTriangle.h" />

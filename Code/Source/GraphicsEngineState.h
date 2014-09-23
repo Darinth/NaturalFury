@@ -6,6 +6,9 @@
 // OS-Unaware
 // Sets up the graphics engine for drawing.
 
+#ifndef GRAPHICS_ENGINE_STATE_H
+#define GRAPHICS_ENGINE_STATE_H
+
 class GraphicsEngine;
 
 class GraphicsEngineState
@@ -15,6 +18,8 @@ private:
 public:
 	GraphicsEngineState(GraphicsEngine* graphicsEngine);
 	virtual ~GraphicsEngineState();
-	virtual void activate() = 0;
-	virtual void deactivate() = 0;
+	virtual void activate();
+	virtual void deactivate();
 };
+
+#endif

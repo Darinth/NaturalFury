@@ -24,6 +24,7 @@ using namespace std;
 #include "ResourceCache.h"
 #include "ResourceHandle.h"
 #include "StringResourceProcessor.h"
+#include "Scene.h"
 
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
@@ -183,7 +184,7 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 
 	pimpl->deviceContext = GetDC(pimpl->windowHandle);
 
-	GraphicsEngine graphicsEngine(pimpl->deviceContext);
+	GraphicsEngine *graphicsEngine = new GraphicsEngine(pimpl->deviceContext);
 
 	MasterDirectoryResourceSource mdrs(".");
 
@@ -195,9 +196,16 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("TextureShader.vert");
 	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("TextureShader.frag");
 
-	ShaderProgram shader(&graphicsEngine, vertShader, fragShader);
+	ShaderProgram *shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
 
-	graphicsEngine.relinquish();
+	Scene *scene = new Scene(graphicsEngine);
+
+	delete scene;
+	delete shader;
+
+	graphicsEngine->relinquish();
+
+	delete graphicsEngine;
 }
 
 Window::~Window()

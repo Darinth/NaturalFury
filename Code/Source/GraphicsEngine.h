@@ -6,8 +6,8 @@
 // OS-Aware
 // Sets up OpenGL context and provides functions for accessing portions of it in a controller fashion.
 
-#ifndef GRAPHICSENGINE_H
-#define GRAPHICSENGINE_H
+#ifndef GRAPHICS_ENGINE_H
+#define GRAPHICS_ENGINE_H
 
 #include <Windows.h>
 #include <atomic>
@@ -188,6 +188,8 @@ public:
 	void setEngineParameter(StateVariable param, GraphicsEngineStateVariable);
 
 	void useProgram(ShaderProgram& shaderProgram);
+
+
 };
 
 #endif

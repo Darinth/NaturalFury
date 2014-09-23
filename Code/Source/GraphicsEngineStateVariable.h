@@ -6,8 +6,8 @@
 // OS-Unaware
 // 
 
-#ifndef GRAPHICSENGINESTATEVARIABLE_H
-#define GRAPHICSENGINESTATEVARIABLE_H
+#ifndef GRAPHICS_ENGINE_STATE_VARIABLE_H
+#define GRAPHICS_ENGINE_STATE_VARIABLE_H
 
 #include <memory>
 using namespace std;
@@ -58,6 +58,49 @@ public:
 	GLint64 getInt64(){ if (type == VariableType::Int64) return value.int64Value; throw exception("Attempt to get int64 from non-int64 GraphicsEngineStateVariable"); }
 
 	VariableType getType(){ return type; }
+
+	bool operator ==(GraphicsEngineStateVariable& other)
+	{
+		if (other.type != type)
+			return false;
+
+		if (other.type == VariableType::Bool)
+		{
+			if (other.value.booleanValue != this->value.booleanValue)
+				return false;
+		}
+
+		if (other.type == VariableType::Float)
+		{
+			if (other.value.floatValue != this->value.floatValue)
+				return false;
+		}
+
+		if (other.type == VariableType::Double)
+		{
+			if (other.value.doubleValue != this->value.doubleValue)
+				return false;
+		}
+
+		if (other.type == VariableType::Int)
+		{
+			if (other.value.intValue != this->value.intValue)
+				return false;
+		}
+
+		if (other.type == VariableType::Int64)
+		{
+			if (other.value.int64Value != this->value.int64Value)
+				return false;
+		}
+
+		return true;
+	}
+
+	bool operator!=(GraphicsEngineStateVariable& other)
+	{
+		return !(*this == other);
+	}
 };
 
 #endif

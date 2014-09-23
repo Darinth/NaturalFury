@@ -6,8 +6,8 @@
 // OS-Unaware
 // Sets up a shader for the graphics engine. 
 
-#ifndef SHADERPROGRAM_H
-#define SHADERPROGRAM_H
+#ifndef SHADER_PROGRAM_H
+#define SHADER_PROGRAM_H
 
 #include <memory>
 
@@ -17,6 +17,7 @@ class ResourceHandle;
 class ShaderProgram
 {
 private:
+	GraphicsEngine* graphicsEngine;
 	unsigned int shaderProgram;
 	unsigned int cameraToClipMatrixUniform;
 	unsigned int modelToCameraMatrixUniform;

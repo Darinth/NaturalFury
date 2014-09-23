@@ -8,6 +8,7 @@
 #include "CustomMemory.h"
 
 #include "GraphicsEngineState.h"
+#include "GraphicsEngine.h"
 
 GraphicsEngineState::GraphicsEngineState(GraphicsEngine* graphicsEngine) : graphicsEngine(graphicsEngine)
 {
@@ -17,4 +18,14 @@ GraphicsEngineState::GraphicsEngineState(GraphicsEngine* graphicsEngine) : graph
 GraphicsEngineState::~GraphicsEngineState()
 {
 
+}
+
+void GraphicsEngineState::activate()
+{
+
+}
+
+void GraphicsEngineState::deactivate()
+{
+	graphicsEngine->popEngineState();
 }
