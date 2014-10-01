@@ -23,7 +23,8 @@ public:
 	CubeModel(GraphicsEngine* graphicsEngine);
 	CubeModel(CubeModel&) = delete;
 	CubeModel(CubeModel&&) = delete;
-	void draw();
+	~CubeModel();
+	void draw(glm::dmat4 modelToWorld);
 };
 
 #endif

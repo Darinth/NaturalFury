@@ -18,17 +18,19 @@ using namespace std;
 #include <glm\glm.hpp>
 
 class Model;
+class GraphicsEngine;
 
 class Scene : public ISceneNode
 {
 private:
 	vector<shared_ptr<ISceneNode>> nodes;
-	GraphicsEngine graphicsEngine;
+	GraphicsEngine* graphicsEngine;
 public:
 	Scene(GraphicsEngine *graphicsEngine);
 	Scene(Scene&) = delete;
 	Scene(Scene&&) = delete;
 	void draw();
+	void addNode(shared_ptr<ISceneNode> sceneNode);
 };
 
 #endif

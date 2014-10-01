@@ -12,7 +12,16 @@
 
 #include "Model.h"
 
+SceneNode::SceneNode()
+{
+
+}
+
+SceneNode::SceneNode(shared_ptr<Model> model, glm::dmat4 modelToWorld) : model(model), modelToWorld(modelToWorld)
+{
+}
+
 void SceneNode::draw()
 {
-	model->draw(ModelToWorld);
+	model->draw(modelToWorld);
 }

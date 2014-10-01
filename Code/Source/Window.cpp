@@ -25,6 +25,8 @@ using namespace std;
 #include "ResourceHandle.h"
 #include "StringResourceProcessor.h"
 #include "Scene.h"
+#include "CubeModel.h"
+#include "SceneNode.h"
 
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
@@ -175,6 +177,8 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 		throw exception("Window Creation Failed");
 	}
 
+	show();
+
 	RAWINPUTDEVICE Rid[1];
 	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	Rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
@@ -184,8 +188,6 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 
 	pimpl->deviceContext = GetDC(pimpl->windowHandle);
 
-	GraphicsEngine *graphicsEngine = new GraphicsEngine(pimpl->deviceContext);
-
 	MasterDirectoryResourceSource mdrs(".");
 
 	mdrs.open();
@@ -193,19 +195,55 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	ResourceCache resourceCache(1024 * 1024 * 100, &mdrs);
 	resourceCache.registerProcessor(shared_ptr<IResourceProcessor>(new StringResourceProcessor));
 
-	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("TextureShader.vert");
-	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("TextureShader.frag");
+	shared_ptr<ResourceHandle> vertShaderBase = resourceCache.gethandle("ColorShader.vert");
+	shared_ptr<ResourceHandle> fragShaderBase = resourceCache.gethandle("ColorShader.frag");
+
+	graphicsEngine = new GraphicsEngine(pimpl->deviceContext, vertShaderBase, fragShaderBase);
+	graphicsEngine->setViewport(width, height);
+
+	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("ColorShader.vert");
+	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("ColorShader.frag");
+
+	glm::dmat4 worldToCamera(1.0);
+	worldToCamera = glm::gtc::matrix_transform::translate(worldToCamera, glm::dvec3(0, -3, 0));
+	graphicsEngine->setWorldToCamera(worldToCamera);
 
 	ShaderProgram *shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
 
-	Scene *scene = new Scene(graphicsEngine);
+	{
+		shared_ptr<CubeModel> cubeModel(new CubeModel(graphicsEngine));
 
-	delete scene;
+		Scene *scene = new Scene(graphicsEngine);
+
+		glm::dmat4 modelToWorld(1.0); 
+		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(0, -0.5, 0));
+		modelToWorld = glm::gtc::matrix_transform::scale(modelToWorld, glm::dvec3(200.0, 1, 200.0));
+		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
+		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
+		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
+		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
+		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
+
+		graphicsEngine->clearScreen();
+		scene->draw();
+		graphicsEngine->swapBuffers();
+
+		delete scene;
+	}
+
+	//
+	//modelToWorld = ;
+	//modelToWorld = modelToWorld, );
+	//myModel->draw(modelToWorld);
+	//modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
+	//myModel->draw(modelToWorld);
+	//modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
+	//myModel->draw(modelToWorld);
+
 	delete shader;
 
 	graphicsEngine->relinquish();
 
-	delete graphicsEngine;
 }
 
 Window::~Window()
@@ -219,6 +257,7 @@ Window::~Window()
 	appWindow = nullptr;
 
 	delete pimpl;
+	delete graphicsEngine;
 }
 
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -233,7 +272,6 @@ LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPA
 		return (DefWindowProc(hwnd, message, wParam, lParam));
 	}
 }
-
 
 int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int wParam, long lParam)
 {

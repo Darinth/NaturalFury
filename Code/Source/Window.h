@@ -11,6 +11,7 @@
 #define WINDOW_H
 
 class PlayerView;
+class GraphicsEngine;
 
 class Window
 {
@@ -23,6 +24,7 @@ private:
 	bool fullScreen;
 	int width, height;
 	int bits;
+	GraphicsEngine *graphicsEngine;
 	Window(const Window& window);
 	Window(Window&& window);
 	Window operator =(const Window& window);

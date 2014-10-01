@@ -29,7 +29,6 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 		throw exception("Attempt to construct a ShaderProgram with unclaimed GraphicsEngine");
 
 	//Comile vertex shader
-	GLuint vertShader;
 	try
 	{
 		vertShader = glutil::CompileShader(GL_VERTEX_SHADER, vertexShader->resource);
@@ -40,7 +39,6 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	}
 
 	//Compile fragment shader
-	GLuint fragShader;
 	try
 	{
 		fragShader = glutil::CompileShader(GL_FRAGMENT_SHADER, fragmentShader->resource);
@@ -83,18 +81,26 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	}
 
 	//Get the uniform locations for the texture shaders
-	cameraToClipMatrixUniform = glGetUniformLocation(shaderProgram, "cameraToClipMatrix");
-	modelToCameraMatrixUniform = glGetUniformLocation(shaderProgram, "modelToCameraMatrix");
-	cubeTextureUniform = glGetUniformLocation(shaderProgram, "cubeTexture");
+	//cameraToClipMatrixUniform = glGetUniformLocation(shaderProgram, "cameraToClipMatrix");
+	//modelToCameraMatrixUniform = glGetUniformLocation(shaderProgram, "modelToCameraMatrix");
+	//cubeTextureUniform = glGetUniformLocation(shaderProgram, "cubeTexture");
 
-	glDeleteShader(vertShader);
-	glDeleteShader(fragShader);
+	GLuint matrixBlockIndex = glGetUniformBlockIndex(shaderProgram, "MatrixBlock");
+	if (matrixBlockIndex != GL_INVALID_INDEX)
+	{
+		glUniformBlockBinding(shaderProgram, matrixBlockIndex, 1);
+	}
+
+	glUseProgram(shaderProgram);
 }
 
 ShaderProgram::~ShaderProgram()
 {
 	if (!graphicsEngine->isClaimed())
 		throw exception("Attempt to deconstruct a ShaderProgram with unclaimed GraphicsEngine");
+
+	glDeleteShader(vertShader);
+	glDeleteShader(fragShader);
 
 	glDeleteProgram(shaderProgram);
 }

@@ -22,7 +22,9 @@ class SceneNode : public ISceneNode
 {
 private:
 public:
-	glm::dmat4 ModelToWorld;
+	SceneNode();
+	SceneNode(shared_ptr<Model> model, glm::dmat4 modelToWorld);
+	glm::dmat4 modelToWorld;
 	shared_ptr<Model> model;
 	virtual void draw();
 };

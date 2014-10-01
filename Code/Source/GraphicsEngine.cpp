@@ -192,7 +192,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	return shader;
 }
 
-GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), worldToCamera(1.0)
+GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> vertShaderBase, shared_ptr<ResourceHandle> fragShaderBase) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -254,13 +254,40 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 	screenRatio = 1.0f*screenDims[1] / screenDims[0];
 	//Adjust camera to clip matrix
 	cameraToClip[0].x = frustumScale * screenRatio;
+
 	//Upload camera to clip matrix
-	glUseProgram(theProgram);
-	glUniformMatrix4fv(cameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
-	glUseProgram(lineProgram);
-	glUniformMatrix4fv(colorCameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
 
 	doErrorCheck();
+
+	ShaderProgram tempProgram(this, vertShaderBase, fragShaderBase);
+
+	GLuint matrixBlockIndex = glGetUniformBlockIndex(tempProgram.shaderProgram, "MatrixBlock");
+	GLint matrixBlockSize;
+	glGetActiveUniformBlockiv(tempProgram.shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
+	glGenBuffers(1, &matrixBlockBuffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
+	glBufferData(GL_UNIFORM_BUFFER, matrixBlockSize, NULL, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, matrixBlockBuffer);
+
+	glUseProgram(tempProgram.shaderProgram);
+	const GLchar *uniformNames[] =
+	{
+		"MatrixBlock.modelToCameraMatrix",
+		"MatrixBlock.cameraToClipMatrix"
+	};
+
+	GLuint matrixBlockUniformIndices[2];
+	glGetUniformIndices(tempProgram.shaderProgram, 2, uniformNames, matrixBlockUniformIndices);
+
+	glGetActiveUniformsiv(tempProgram.shaderProgram, 2, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
+
+	doErrorCheck();
+
+	updateCameraToClip();
+	doErrorCheck();
+
+	setModelToWorld(glm::dmat4(1.0));
+	setWorldToCamera(glm::dmat4(1.0));
 }
 
 GraphicsEngine::~GraphicsEngine()
@@ -384,49 +411,6 @@ void GraphicsEngine::prepProgram(ShaderProgram* program)
 
 }
 
-void GraphicsEngine::prepStandardProgramDraw(const float* matrix, unsigned int VAO)
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	if (!isClaimed())
-		throw exception("Request to prepStandardProgramDraw while context not active");
-	//Update viewport if it needs it
-	updateViewport();
-
-	//Use the program
-	glUseProgram(theProgram);
-
-	//Upload the provided model to camera matrix
-	glUniformMatrix4fv(modelToCameraMatrixUniform, 1, GL_FALSE, matrix);
-
-	//Bind the VAO
-	glBindVertexArray(VAO);
-	//Bind textures
-	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, cubeTexture);
-
-	doErrorCheck();
-}
-
-void GraphicsEngine::prepColoredProgramDraw(const float* matrix, unsigned int VAO)
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-	if (!isClaimed())
-		throw exception("Request to prepColoredProgramDraw while context not active");
-	//Update viewport if it needs it
-	updateViewport();
-
-	//Use the program
-	glUseProgram(lineProgram);
-
-	//Upload the provided model to camera matrix
-	glUniformMatrix4fv(colorModelToCameraMatrixUniform, 1, GL_FALSE, matrix);
-
-	//Bind the VAO
-	glBindVertexArray(VAO);
-
-	doErrorCheck();
-}
-
 void GraphicsEngine::drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
@@ -440,12 +424,6 @@ void GraphicsEngine::drawCylinder(const glm::dmat4& modelToWorld, double radius,
 
 	//Setup modelToCamera matrix
 	glm::mat4 modelToCamera(modelToWorld * worldToCamera);
-
-	//Use the program
-	glUseProgram(theProgram);
-
-	//Upload modelToCamera matrix
-	glUniformMatrix4fv(modelToCameraMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelToCamera));
 
 	//bind cylinder VAO
 	glBindVertexArray(cylinderVAO);
@@ -605,14 +583,6 @@ void GraphicsEngine::textToScreen(string text)
 	modelToCamera[3].y = -15;
 	modelToCamera[3].z = 15;
 
-	//Use the program
-	glUseProgram(theProgram);
-	doErrorCheck();
-
-	//Upload the matrix
-	glUniformMatrix4fv(modelToCameraMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelToCamera));
-	doErrorCheck();
-
 	//Draw the text
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size() * 3);
 	doErrorCheck();
@@ -649,13 +619,9 @@ void GraphicsEngine::updateViewport()
 	screenRatio = 1.0f*viewportHeight / viewportWidth;
 	//Calculate cameraToClip matrix
 	cameraToClip[0].x = frustumScale * screenRatio;
-	//Upload cameraToClip matrix
-	glUseProgram(theProgram);
-	glUniformMatrix4fv(cameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
-	glUseProgram(lineProgram);
-	glUniformMatrix4fv(colorCameraToClipMatrixUniform, 1, GL_FALSE, glm::value_ptr(cameraToClip));
 	//Turn off viewport update needed
 	viewportUpdateNeeded = false;
+	updateCameraToClip();
 }
 
 void GraphicsEngine::pushEngineState()
@@ -748,4 +714,41 @@ void GraphicsEngine::setEngineParameter(StateVariable param, GraphicsEngineState
 void GraphicsEngine::useProgram(ShaderProgram& shaderProgram)
 {
 	setEngineParameter(StateVariable::ShaderProgram, GraphicsEngineStateVariable((GLint)shaderProgram.shaderProgram));
+}
+
+void GraphicsEngine::setModelToWorld(glm::dmat4 modelToWorld)
+{
+	this->modelToWorld = modelToWorld;
+	updateModelToCamera();
+}
+
+void GraphicsEngine::setWorldToCamera(glm::dmat4 worldToCamera)
+{
+	this->worldToCamera = worldToCamera;
+	updateModelToCamera();
+}
+
+void GraphicsEngine::setCameraToClip(glm::mat4 cameraToClip)
+{
+	this->cameraToClip = cameraToClip;
+	updateCameraToClip();
+}
+
+void GraphicsEngine::updateModelToCamera()
+{
+	glm::mat4 newModelToCamera = glm::mat4(modelToWorld * worldToCamera);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(newModelToCamera[0][0]));
+}
+
+void GraphicsEngine::updateCameraToClip()
+{
+	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[1], 64, &(this->cameraToClip[0][0]));
+}
+
+void GraphicsEngine::swapBuffers()
+{
+	SwapBuffers(deviceContext);
 }

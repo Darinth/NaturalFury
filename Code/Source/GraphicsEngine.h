@@ -37,6 +37,9 @@ extern const TexturedVertex cylinderVertices[];
 class ThreadSafeFstream;
 class ShaderProgram;
 
+class ResourceHandle;
+class CubeModel;
+
 enum class StateVariable
 {
 	DepthTest,
@@ -50,6 +53,7 @@ enum class StateVariable
 class GraphicsEngine : public Lockable
 {
 private:
+	friend class CubeModel;
 
 	//DeviceContext
 	HDC deviceContext;
@@ -68,7 +72,10 @@ private:
 	const float frustumScale;  //Increases/decreases zoom
 	float screenRatio;   //Aspect ratio of viewport
 
-	//Point of matrix to convert coordinates from world to camera. Multiplied with modelToCamera matrix and then convert to floats before being uploaded to openGL.
+	//Matrix to convert coordinate from model to world.
+	glm::dmat4 modelToWorld;
+
+	//Matrix to convert coordinates from world to camera. Multiplied with modelToWorld matrix and then convert to floats before being uploaded to openGL.
 	glm::dmat4 worldToCamera;
 
 	//VAO and Buffer for drawing plain old cylinder.
@@ -79,10 +86,6 @@ private:
 	//Matrix for transformation from camera to clip space
 	glm::mat4 cameraToClip;
 
-	//Shader uniform for camera to clip matrix
-	GLuint cameraToClipMatrixUniform;
-	//Shader uniform for model to camera matrix
-	GLuint modelToCameraMatrixUniform;
 	//Shader uniform for cube texture.
 	GLuint cubeTextureUniform;
 	//Sampler for getting data from cubeTexture
@@ -99,11 +102,9 @@ private:
 	unsigned int cubeTextureHeight;
 	unsigned int cubeTextureWidth;
 
-	//The main shader program used for pretty much everything
-	unsigned int theProgram;
-
-	//Shader program used specifically to draw lines (currently used for debug drawing)
-	unsigned int lineProgram;
+	//Variables to deal with matrix block.
+	GLuint matrixBlockBuffer;
+	GLint matrixBlockUniformOffsets[2];
 
 	//openGL Texture to hold ASCII texture
 	GLuint ASCIItexture;
@@ -129,10 +130,12 @@ private:
 
 	//Sets opengl state and tracks it so it can be later reverted.
 	void internalSetEngineParameter(StateVariable param, GraphicsEngineStateVariable);
+	void updateModelToCamera();
+	void updateCameraToClip();
 
 public:
 	//Constructor. Takes a device context.
-	GraphicsEngine(HDC deviceContext);
+	GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> vertShaderBase, shared_ptr<ResourceHandle> fragShaderBase);
 	~GraphicsEngine();
 
 	//Claims the context. Unless otherwise stated, GraphicsContext functions may only be used on a claimed context.
@@ -156,10 +159,6 @@ public:
 	bool doErrorCheck();
 
 	void prepProgram(ShaderProgram* program);
-
-	//Preps OpenGL to perform drawing using the given model to camera matrix and VAO.
-	void prepStandardProgramDraw(const float* matrix, unsigned int VAO);
-	void prepColoredProgramDraw(const float* matrix, unsigned int VAO);
 
 	//Draws a cylinder at the given coordinate with a given radius and height. Triangles is currently ignored, but will eventually specify the number of triangles to use to draw the cylinder sides.
 	void drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles);
@@ -189,7 +188,10 @@ public:
 
 	void useProgram(ShaderProgram& shaderProgram);
 
-
+	void setModelToWorld(glm::dmat4 modelToWorld);
+	void setWorldToCamera(glm::dmat4 worldToCamera);
+	void setCameraToClip(glm::mat4 cameraToClip);
+	void swapBuffers();
 };
 
 #endif

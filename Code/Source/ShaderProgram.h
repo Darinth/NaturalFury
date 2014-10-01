@@ -22,6 +22,8 @@ private:
 	unsigned int cameraToClipMatrixUniform;
 	unsigned int modelToCameraMatrixUniform;
 	unsigned int cubeTextureUniform;
+	unsigned int vertShader;
+	unsigned int fragShader;
 
 public:
 	ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<ResourceHandle> vertexShader, shared_ptr<ResourceHandle> fragmentShader);

@@ -108,6 +108,7 @@
     <ClCompile Include="..\..\Source\RAIIController.h" />
     <ClCompile Include="..\..\Source\ResourceCache.cpp" />
     <ClCompile Include="..\..\Source\ResourceHandle.cpp" />
+    <ClCompile Include="..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\Source\SceneNode.cpp" />
     <ClCompile Include="..\..\Source\ShaderProgram.cpp" />
     <ClCompile Include="..\..\Source\StringResourceProcessor.cpp" />
