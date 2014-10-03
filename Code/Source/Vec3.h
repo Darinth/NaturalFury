@@ -140,6 +140,12 @@ struct Vec3
 		return *this;
 	}
 
+	Vec3<xType, yType, zType> operator-() const
+	{
+		SpatialVector<xType, yType, zType> returnVector(-this->x, -this->y, -this->z);
+		return returnVector;
+	}
+
 	Vec3<xType, yType, zType> wrap(const Vec3<xType, yType, zType>& dimensions) const
 	{
 		Vec3<xType, yType, zType> returnVector = *this;

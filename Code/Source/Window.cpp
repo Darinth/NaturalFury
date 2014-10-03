@@ -34,6 +34,9 @@ using namespace std;
 #ifndef HID_USAGE_GENERIC_MOUSE
 #define HID_USAGE_GENERIC_MOUSE        ((USHORT) 0x02)
 #endif
+#ifndef HID_USAGE_GENERIC_KEYBOARD
+#define HID_USAGE_GENERIC_KEYBOARD     ((USHORT) 0x06)
+#endif
 
 KeyEnum translations[256] = { KeyEnum::Invalid };
 
@@ -48,8 +51,19 @@ struct Window::Pimpl
 	WNDCLASSEX windowClass;
 };
 
-Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits)
+Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits), debugCameraTransform(1.0)
 {
+	//Initialize key translations
+	translations[65] = KeyEnum::A;
+	translations[68] = KeyEnum::D;
+	translations[83] = KeyEnum::S;
+	translations[87] = KeyEnum::W;
+
+	for (int I = 0; I < (unsigned short)KeyEnum::TotalKeys; I++)
+	{
+		keyStates[I] = false;
+	}
+
 	//Store the player view to forward messages to.
 	this->playerView = playerView;
 	//Application only supports single window. If there's a need for multiwindow display, this can be upgraded to support it.
@@ -179,12 +193,16 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 
 	show();
 
-	RAWINPUTDEVICE Rid[1];
+	RAWINPUTDEVICE Rid[2];
 	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	Rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
 	Rid[0].dwFlags = RIDEV_INPUTSINK;
 	Rid[0].hwndTarget = pimpl->windowHandle;
-	RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
+	Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+	Rid[1].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+	Rid[1].dwFlags = RIDEV_INPUTSINK;
+	Rid[1].hwndTarget = pimpl->windowHandle;
+	RegisterRawInputDevices(Rid, 2, sizeof(Rid[0]));
 
 	pimpl->deviceContext = GetDC(pimpl->windowHandle);
 
@@ -204,45 +222,27 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("ColorShader.vert");
 	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("ColorShader.frag");
 
-	glm::dmat4 worldToCamera(1.0);
-	worldToCamera = glm::gtc::matrix_transform::translate(worldToCamera, glm::dvec3(0, -3, 0));
-	graphicsEngine->setWorldToCamera(worldToCamera);
+	debugCameraTransform = glm::gtc::matrix_transform::translate(debugCameraTransform, glm::dvec3(0, -3, 0));
+	graphicsEngine->setWorldToCamera(debugCameraTransform);
 
-	ShaderProgram *shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
+	shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
 
-	{
-		shared_ptr<CubeModel> cubeModel(new CubeModel(graphicsEngine));
+	cubeModel = new shared_ptr<CubeModel>(new CubeModel(graphicsEngine));
 
-		Scene *scene = new Scene(graphicsEngine);
+	scene = new Scene(graphicsEngine);
 
-		glm::dmat4 modelToWorld(1.0); 
-		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(0, -0.5, 0));
-		modelToWorld = glm::gtc::matrix_transform::scale(modelToWorld, glm::dvec3(200.0, 1, 200.0));
-		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
-		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
-		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
-		modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
-		scene->addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
+	glm::dmat4 modelToWorld(1.0); 
+	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(0, -0.5, 0));
+	modelToWorld = glm::gtc::matrix_transform::scale(modelToWorld, glm::dvec3(200.0, 1, 200.0));
+	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
+	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
+	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
+	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
+	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
 
-		graphicsEngine->clearScreen();
-		scene->draw();
-		graphicsEngine->swapBuffers();
-
-		delete scene;
-	}
-
-	//
-	//modelToWorld = ;
-	//modelToWorld = modelToWorld, );
-	//myModel->draw(modelToWorld);
-	//modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
-	//myModel->draw(modelToWorld);
-	//modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
-	//myModel->draw(modelToWorld);
-
-	delete shader;
-
-	graphicsEngine->relinquish();
+	graphicsEngine->clearScreen();
+	scene->draw();
+	graphicsEngine->swapBuffers();
 
 }
 
@@ -256,8 +256,36 @@ Window::~Window()
 
 	appWindow = nullptr;
 
+	delete cubeModel;
+
+	delete scene;
+
+	delete shader;
+
 	delete pimpl;
+
+	graphicsEngine->relinquish();
 	delete graphicsEngine;
+}
+
+void Window::shiftDebugCamera(Vec3<double> shift)
+{
+	debugCameraTransform = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-shift.x, -shift.y, -shift.z)) * debugCameraTransform;
+	graphicsEngine->setWorldToCamera(debugCameraTransform);
+
+	graphicsEngine->clearScreen();
+	scene->draw();
+	graphicsEngine->swapBuffers();
+}
+
+void Window::rotateDebugCamera(double angle, Vec3<double> axis)
+{
+	debugCameraTransform = glm::gtc::matrix_transform::rotate(glm::dmat4(1.0), angle, glm::dvec3(-axis.x, -axis.y, -axis.z)) * debugCameraTransform;
+	graphicsEngine->setWorldToCamera(debugCameraTransform);
+
+	graphicsEngine->clearScreen();
+	scene->draw();
+	graphicsEngine->swapBuffers();
 }
 
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -351,15 +379,17 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 			}
 			else if (raw->header.dwType == RIM_TYPEKEYBOARD)
 			{
-				if (raw->data.keyboard.Flags == RI_KEY_MAKE)
+				if (raw->data.keyboard.Flags == RI_KEY_MAKE && !keyStates[(unsigned int)translations[raw->data.keyboard.VKey]])
 				{
 					//KeyDown event
 					playerView->keyDown(translations[raw->data.keyboard.VKey]);
+					keyStates[(unsigned int)translations[raw->data.keyboard.VKey]] = true;
 				}
-				else
+				else if(raw->data.keyboard.Flags == RI_KEY_BREAK && keyStates[(unsigned int)translations[raw->data.keyboard.VKey]])
 				{
 					//KeyUp event
 					playerView->keyUp(translations[raw->data.keyboard.VKey]);
+					keyStates[(unsigned int)translations[raw->data.keyboard.VKey]] = false;
 				}
 				
 			}

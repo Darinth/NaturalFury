@@ -10,8 +10,18 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#include <memory>
+
+#include <glm/glm.hpp>
+
+#include "Vec3.h"
+#include "KeyEnum.h"
+
 class PlayerView;
 class GraphicsEngine;
+class CubeModel;
+class ShaderProgram;
+class Scene;
 
 class Window
 {
@@ -28,10 +38,19 @@ private:
 	Window(const Window& window);
 	Window(Window&& window);
 	Window operator =(const Window& window);
+	bool keyStates[(unsigned short)KeyEnum::TotalKeys];
+
+	//Debug variables.
+	glm::dmat4 debugCameraTransform;
+	ShaderProgram *shader;
+	shared_ptr<CubeModel> *cubeModel;
+	Scene *scene;
 
 public:
 	Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView);
 	~Window();
+	void shiftDebugCamera(Vec3<double> shift);
+	void rotateDebugCamera(double angle, Vec3<double> axis);
 
 #ifdef _WINDOWS
 	virtual int handleMessage(void* windowHandle, unsigned int message, unsigned int wParam, long lParam);

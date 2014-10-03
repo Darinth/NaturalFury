@@ -736,7 +736,7 @@ void GraphicsEngine::setCameraToClip(glm::mat4 cameraToClip)
 
 void GraphicsEngine::updateModelToCamera()
 {
-	glm::mat4 newModelToCamera = glm::mat4(modelToWorld * worldToCamera);
+	glm::mat4 newModelToCamera = glm::mat4(worldToCamera * modelToWorld);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(newModelToCamera[0][0]));
