@@ -25,6 +25,7 @@ public:
 	CubeModel(CubeModel&&) = delete;
 	~CubeModel();
 	void draw(glm::dmat4 modelToWorld);
+	virtual bool castsShadows() { return true; }
 };
 
 #endif

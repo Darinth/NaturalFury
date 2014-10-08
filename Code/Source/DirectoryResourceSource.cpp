@@ -17,9 +17,8 @@
 #include <sstream>
 using namespace std;
 
+#include "Globals.h"
 #include "Logger.h"
-
-extern Logger* appLogger;
 
 const unsigned int fileNameLength = 1024;
 
@@ -84,7 +83,7 @@ void DirectoryResourceSource::traverseFolder(unordered_set<string>& blackList, s
 	//Something went wrong attempting to search the file in the directory.
 	else
 	{
-		appLogger->eWriteLog("Invalid directory path " + folder, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog("Invalid directory path " + folder, LogLevel::Warning, { "Resource" });
 	}
 }
 
@@ -104,7 +103,7 @@ bool DirectoryResourceSource::open()
 	//If we've got an error, write a log and return false.
 	if (manifestDoc.Error())
 	{
-		appLogger->eWriteLog("Failed to open manifest.xml for " + directory + "(" + manifestDoc.ErrorDesc() + ")", LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog("Failed to open manifest.xml for " + directory + "(" + manifestDoc.ErrorDesc() + ")", LogLevel::Warning, { "Resource" });
 		return false;
 	}
 

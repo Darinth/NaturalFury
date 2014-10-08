@@ -4,9 +4,11 @@
 in vec3 colorCoord;
 in vec4 normal;
 
-uniform sampler2DArray cubeTexture;
+uniform sampler2DArray imageArray;
 
 out vec4 outputColor;
+
+getColor
 
 void main()
 {

@@ -2,13 +2,12 @@
 
 #include <mutex>
 
+#include "Globals.h"
 #include "ResourceCache.h"
 #include "ResourceHandle.h"
 #include "IResourceSource.h"
 #include "IResourceProcessor.h"
 #include "Logger.h"
-
-extern Logger* appLogger;
 
 ResourceCache::ResourceCache(unsigned int size, IResourceSource *resourceSource) : availableMemory(size), resourceSource(resourceSource), allocatedMemory(0)
 {
@@ -73,7 +72,7 @@ char *ResourceCache::allocate(unsigned int size)
 
 	//Check if we're over our allocation limits, write a warning entry if we are
 	if (allocatedMemory > availableMemory)
-		appLogger->eWriteLog("ResourceCache over memory limit!", LogLevel::Warning, { "ResourceCache" });
+		globalLogger->eWriteLog("ResourceCache over memory limit!", LogLevel::Warning, { "ResourceCache" });
 
 	//Allocate memory and return pointer.
 	return new char[size];

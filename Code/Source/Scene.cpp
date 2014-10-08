@@ -10,6 +10,9 @@
 
 #include "Scene.h"
 
+#include <list>
+using namespace std;
+
 Scene::Scene(GraphicsEngine *graphicsEngine)
 {
 
@@ -17,6 +20,8 @@ Scene::Scene(GraphicsEngine *graphicsEngine)
 
 void Scene::draw()
 {
+	list<shared_ptr<ISceneNode>> lights;
+
 	for (vector<shared_ptr<ISceneNode>>::iterator it = nodes.begin(); it != nodes.end(); ++it)
 	{
 		(*it)->draw();

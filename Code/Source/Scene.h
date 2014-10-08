@@ -31,6 +31,7 @@ public:
 	Scene(Scene&&) = delete;
 	void draw();
 	void addNode(shared_ptr<ISceneNode> sceneNode);
+	virtual bool castsShadows() { return true; }
 };
 
 #endif

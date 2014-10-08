@@ -15,7 +15,9 @@ struct ColoredVertex
 {
 	Vec3<float> location;
 	Vec3<float> normal;
-	Vec3<float> color;
+	unsigned char color[4];
+	unsigned char diffuse;
+	unsigned char specular;
 	ColoredVertex& operator+=(Vec3<float> modifier)
 	{
 		location += modifier;

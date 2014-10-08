@@ -2,10 +2,14 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normalIn;
-layout(location = 2) in vec3 colorIn;
+layout(location = 2) in vec4 colorIn;
+layout(location = 3) in float diffuseIn;
+layout(location = 4) in float specularIn;
 
-out vec4 normalOut;
-out vec3 colorOut;
+out vec3 normalOut;
+out vec4 colorOut;
+out float diffuseOut;
+out float specularOut;
 
 layout(shared) uniform MatrixBlock
 {
@@ -16,7 +20,9 @@ layout(shared) uniform MatrixBlock
 void main()
 {
 	gl_Position = matrices.cameraToClipMatrix * matrices.modelToCameraMatrix * vec4(position,1.0);
-	normalOut = matrices.cameraToClipMatrix * matrices.modelToCameraMatrix * vec4(normalIn,1.0);
+	normalOut = normalize(normalIn);
+	diffuseOut = diffuseIn;
+	specularOut = specularIn;
 
 	colorOut = colorIn;
 }

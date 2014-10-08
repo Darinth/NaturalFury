@@ -16,6 +16,7 @@
 #include <memory>
 #include <unordered_map>
 #include <stack>
+#include <queue>
 using namespace std;
 
 #include <glload/gl_3_3.h>
@@ -39,6 +40,7 @@ class ShaderProgram;
 
 class ResourceHandle;
 class CubeModel;
+class GraphicsEngineTexture;
 
 enum class StateVariable
 {
@@ -54,6 +56,7 @@ class GraphicsEngine : public Lockable
 {
 private:
 	friend class CubeModel;
+	friend class GraphicsEngineTexture;
 
 	//DeviceContext
 	HDC deviceContext;
@@ -86,25 +89,43 @@ private:
 	//Matrix for transformation from camera to clip space
 	glm::mat4 cameraToClip;
 
+	//Variables used when loading textures.
+	GLint maxTextureUnits;
+	GLint maxArrayTextureLayers;
+
 	//Shader uniform for cube texture.
-	GLuint cubeTextureUniform;
+	GLuint textureArrayUniform;
 	//Sampler for getting data from cubeTexture
-	GLuint cubeSampler;
+	GLuint arraySampler;
 	//cubeTexture openGL texture
-	GLuint cubeTexture;
+	GLuint textureArray;
 	GLuint colorCameraToClipMatrixUniform;
 	GLuint colorModelToCameraMatrixUniform;
 	//Number of textures loaded
-	unsigned int cubeTextureCount;
-	//Data for loaded cube textures
-	vector<unsigned char> cubeTextureData;
+	unsigned int textureArrayCount;
+	//Data for loaded textures
+	vector<unsigned char> textureArrayData;
 	//Cube texture height and width
-	unsigned int cubeTextureHeight;
-	unsigned int cubeTextureWidth;
+	unsigned int textureArrayHeight;
+	unsigned int textureArrayWidth;
+
+	//Tracks loaded textures.
+	unordered_map<string, weak_ptr<GraphicsEngineTexture>> loadedTextures;
+
+	queue<unsigned int> freeTextureIndices;
+	void freeTextureFromArray(string name, unsigned int num);
 
 	//Variables to deal with matrix block.
 	GLuint matrixBlockBuffer;
 	GLint matrixBlockUniformOffsets[2];
+
+	//Variables to deal with light block.
+	GLuint lightBlockBuffer;
+	GLint lightBlockUniformOffsets[4];
+
+	//Sunlight information
+	glm::vec3 sunColor;
+	glm::vec3 sunDirection;
 
 	//openGL Texture to hold ASCII texture
 	GLuint ASCIItexture;
@@ -132,10 +153,11 @@ private:
 	void internalSetEngineParameter(StateVariable param, GraphicsEngineStateVariable);
 	void updateModelToCamera();
 	void updateCameraToClip();
+	glm::vec3 ambientLight;
 
 public:
 	//Constructor. Takes a device context.
-	GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> vertShaderBase, shared_ptr<ResourceHandle> fragShaderBase);
+	GraphicsEngine(HDC deviceContext);
 	~GraphicsEngine();
 
 	//Claims the context. Unless otherwise stated, GraphicsContext functions may only be used on a claimed context.
@@ -155,7 +177,7 @@ public:
 	//Sets the PoV for standard program drawing
 	void setPOV(double x, double y, double z, double angDegZ, double angDegX);
 
-	//Runs an openGL error check and prints errors to the appLogger.
+	//Runs an openGL error check and prints errors to the globalLogger.
 	bool doErrorCheck();
 
 	void prepProgram(ShaderProgram* program);
@@ -166,10 +188,11 @@ public:
 	//Clears the screen
 	void clearScreen();
 
-	//Uploads the cube texture array to OpenGL
-	void bindCubeTextureArray();
-	//Adds a texture to the cube texture array
-	unsigned int loadTextureToCubeArray(string fileName);
+	//Uploads the texture array to OpenGL
+	void bindTextureArray();
+	//Adds a texture to the texture array
+	shared_ptr<GraphicsEngineTexture> loadRawToTextureArray(string textureName, unsigned char* texture, unsigned int width, unsigned int height);
+	shared_ptr<GraphicsEngineTexture> loadPNGToTextureArray(string fileName);
 
 	//Writes text to the screen.
 	void textToScreen(string text);
@@ -192,6 +215,8 @@ public:
 	void setWorldToCamera(glm::dmat4 worldToCamera);
 	void setCameraToClip(glm::mat4 cameraToClip);
 	void swapBuffers();
+	void setAmbientLight(glm::vec3 ambientLight);
+	void setSunlight(glm::vec3 color, glm::vec3 direction);
 };
 
 #endif

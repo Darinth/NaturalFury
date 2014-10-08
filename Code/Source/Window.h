@@ -41,16 +41,22 @@ private:
 	bool keyStates[(unsigned short)KeyEnum::TotalKeys];
 
 	//Debug variables.
-	glm::dmat4 debugCameraTransform;
+	glm::dvec3 debugCameraPosition;
+	double debugCameraTilt;
+	double debugCameraRotation;
 	ShaderProgram *shader;
 	shared_ptr<CubeModel> *cubeModel;
 	Scene *scene;
+	bool autoUpdate;
 
 public:
 	Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView);
 	~Window();
-	void shiftDebugCamera(Vec3<double> shift);
-	void rotateDebugCamera(double angle, Vec3<double> axis);
+	void shiftDebugCamera(glm::dvec3 shift);
+	void rotateDebugCamera(double angle);
+	void tiltDebugCamera(double angle);
+	void updateScene();
+	void toggleAutoUpdate();
 
 #ifdef _WINDOWS
 	virtual int handleMessage(void* windowHandle, unsigned int message, unsigned int wParam, long lParam);

@@ -25,3 +25,8 @@ void SceneNode::draw()
 {
 	model->draw(modelToWorld);
 }
+
+bool SceneNode::castsShadows()
+{
+	return model->castsShadows();
+}

@@ -27,6 +27,7 @@ public:
 	glm::dmat4 modelToWorld;
 	shared_ptr<Model> model;
 	virtual void draw();
+	virtual bool castsShadows();
 };
 
 #endif

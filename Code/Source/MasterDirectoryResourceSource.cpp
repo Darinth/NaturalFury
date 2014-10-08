@@ -18,11 +18,10 @@
 #include <algorithm>
 using namespace std;
 
+#include "Globals.h"
 #include "Logger.h"
 #include "DirectoryResourceSource.h"
 #include "ZipResourceSource.h"
-
-extern Logger* appLogger;
 
 //Just store directory internally
 MasterDirectoryResourceSource::MasterDirectoryResourceSource(string directory) : directory(directory) {}
@@ -103,7 +102,7 @@ bool MasterDirectoryResourceSource::open()
 	//Something went wrong attempting to search the files in the directory.
 	else
 	{
-		appLogger->eWriteLog("Invalid directory path " + directory, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog("Invalid directory path " + directory, LogLevel::Warning, { "Resource" });
 	}
 
 	return true;

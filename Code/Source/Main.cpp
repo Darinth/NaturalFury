@@ -13,9 +13,13 @@
 #include <string>
 using namespace std;
 
+#include "Globals.h"
 #include "GameEngine.h"
 #include "LocalPlayerView.h"
 #include "Logger.h"
+#include "MasterDirectoryResourceSource.h"
+#include "ResourceCache.h"
+#include "StringResourceProcessor.h"
 
 /*      Screen/display attributes*/
 int width = 800;
@@ -25,9 +29,6 @@ int bits = 32;
 HDC deviceContext;
 
 GameEngine *gameEngine;
-
-Logger* appLogger;
-
 
 //Default Initialization values
 bool fullScreen = false;
@@ -40,7 +41,14 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	MSG             msg;                    //message
 	bool    done;                   //flag for completion of app
 
-	appLogger = new Logger("LogInit.xml", "General.log");
+	globalLogger = new Logger("LogInit.xml", "General.log");
+
+	MasterDirectoryResourceSource *mdrs = new MasterDirectoryResourceSource(".");
+
+	mdrs->open();
+
+	globalResourceCache = new ResourceCache(1024 * 1024 * 100, mdrs);
+	globalResourceCache->registerProcessor(shared_ptr<IResourceProcessor>(new StringResourceProcessor));
 
 	//Create GameEngnie
 	gameEngine = new GameEngine();
@@ -79,7 +87,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		//If we exited the tick loop due to having maxed out the tick counter, write a warning to the log.
 		if(ticksThisLoop >= 30)
 		{
-			appLogger->eWriteLog("WARNING: Processor is having trouble keeping up with game rate.", LogLevel::Warning, {});
+			globalLogger->eWriteLog("WARNING: Processor is having trouble keeping up with game rate.", LogLevel::Warning, {});
 		}
 
 		//While there are messages to be processed...
@@ -101,7 +109,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	}
 
 	delete gameEngine;
-	delete appLogger;
+	delete globalLogger;
+	delete globalResourceCache;
+	delete mdrs;
 
 	string allocLog = getAllocs();
 

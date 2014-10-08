@@ -9,10 +9,14 @@
 #ifndef I_SCENE_NODE_H
 #define I_SCENE_NODE_H
 
+class LightData;
+
 class ISceneNode
 {
 public:
 	virtual void draw() = 0;
+	virtual bool castsShadows() = 0;
+	//virtual LightData getLightData();
 };
 
 #endif

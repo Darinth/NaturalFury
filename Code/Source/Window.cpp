@@ -18,6 +18,7 @@ using namespace std;
 #include "PlayerView.h"
 
 //Includes for graphics engine testing
+#include "Globals.h"
 #include "GraphicsEngine.h"
 #include "ShaderProgram.h"
 #include "MasterDirectoryResourceSource.h"
@@ -51,11 +52,13 @@ struct Window::Pimpl
 	WNDCLASSEX windowClass;
 };
 
-Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits), debugCameraTransform(1.0)
+Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits)
 {
 	//Initialize key translations
 	translations[65] = KeyEnum::A;
 	translations[68] = KeyEnum::D;
+	translations[69] = KeyEnum::E;
+	translations[81] = KeyEnum::Q;
 	translations[83] = KeyEnum::S;
 	translations[87] = KeyEnum::W;
 
@@ -206,24 +209,15 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 
 	pimpl->deviceContext = GetDC(pimpl->windowHandle);
 
-	MasterDirectoryResourceSource mdrs(".");
-
-	mdrs.open();
-
-	ResourceCache resourceCache(1024 * 1024 * 100, &mdrs);
-	resourceCache.registerProcessor(shared_ptr<IResourceProcessor>(new StringResourceProcessor));
-
-	shared_ptr<ResourceHandle> vertShaderBase = resourceCache.gethandle("ColorShader.vert");
-	shared_ptr<ResourceHandle> fragShaderBase = resourceCache.gethandle("ColorShader.frag");
-
-	graphicsEngine = new GraphicsEngine(pimpl->deviceContext, vertShaderBase, fragShaderBase);
+	graphicsEngine = new GraphicsEngine(pimpl->deviceContext);
 	graphicsEngine->setViewport(width, height);
 
-	shared_ptr<ResourceHandle> vertShader = resourceCache.gethandle("ColorShader.vert");
-	shared_ptr<ResourceHandle> fragShader = resourceCache.gethandle("ColorShader.frag");
+	shared_ptr<ResourceHandle> vertShader = globalResourceCache->gethandle("ColorShader.vert");
+	shared_ptr<ResourceHandle> fragShader = globalResourceCache->gethandle("ColorShader.frag");
 
-	debugCameraTransform = glm::gtc::matrix_transform::translate(debugCameraTransform, glm::dvec3(0, -3, 0));
-	graphicsEngine->setWorldToCamera(debugCameraTransform);
+	debugCameraPosition = glm::dvec3(0, 3, 0);
+	debugCameraRotation = 0;
+	debugCameraTilt = 0;
 
 	shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
 
@@ -239,11 +233,8 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
 	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
 	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
-
-	graphicsEngine->clearScreen();
-	scene->draw();
-	graphicsEngine->swapBuffers();
-
+	autoUpdate = true;
+	updateScene();
 }
 
 Window::~Window()
@@ -268,9 +259,32 @@ Window::~Window()
 	delete graphicsEngine;
 }
 
-void Window::shiftDebugCamera(Vec3<double> shift)
+void Window::shiftDebugCamera(glm::dvec3 shift)
 {
-	debugCameraTransform = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-shift.x, -shift.y, -shift.z)) * debugCameraTransform;
+	using namespace glm::gtc::matrix_transform;
+	dvec4 finalShift = dvec4(shift, 1.0) * rotate(rotate(glm::dmat4(1.0), debugCameraTilt, dvec3(1.0, 0.0, 0.0)), debugCameraRotation, dvec3(0.0, -1.0, 0.0));
+	debugCameraPosition += dvec3(finalShift);
+	if (autoUpdate) updateScene();
+}
+
+void Window::rotateDebugCamera(double angle)
+{
+	debugCameraRotation += angle;
+	if(autoUpdate) updateScene();
+}
+
+void Window::tiltDebugCamera(double angle)
+{
+	debugCameraTilt += angle;
+	if (autoUpdate) updateScene();
+}
+
+void Window::updateScene()
+{
+	glm::dmat4 debugCameraTransform(1.0);
+	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraTilt, glm::dvec3(1.0, 0.0, 0.0));
+	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraRotation, glm::dvec3(0.0, -1.0, 0.0));
+	debugCameraTransform = glm::gtc::matrix_transform::translate(debugCameraTransform, glm::dvec3(-debugCameraPosition.x, -debugCameraPosition.y, -debugCameraPosition.z));
 	graphicsEngine->setWorldToCamera(debugCameraTransform);
 
 	graphicsEngine->clearScreen();
@@ -278,14 +292,9 @@ void Window::shiftDebugCamera(Vec3<double> shift)
 	graphicsEngine->swapBuffers();
 }
 
-void Window::rotateDebugCamera(double angle, Vec3<double> axis)
+void Window::toggleAutoUpdate()
 {
-	debugCameraTransform = glm::gtc::matrix_transform::rotate(glm::dmat4(1.0), angle, glm::dvec3(-axis.x, -axis.y, -axis.z)) * debugCameraTransform;
-	graphicsEngine->setWorldToCamera(debugCameraTransform);
-
-	graphicsEngine->clearScreen();
-	scene->draw();
-	graphicsEngine->swapBuffers();
+	autoUpdate = !autoUpdate;
 }
 
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -363,7 +372,7 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 		//If the middle(tertiary) mouse button is pressed
 		else if (message == WM_MBUTTONDOWN)
 			playerView->mouseClick(3);
-		else if (message == WM_INPUT)
+		else if (message == WM_INPUT && GetFocus() == windowHandle)
 		{
 			UINT dwSize = 40;
 			static BYTE lpb[40];

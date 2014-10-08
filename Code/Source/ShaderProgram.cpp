@@ -17,11 +17,10 @@ using namespace std;
 #include <glutil/glutil.h>
 #include <glm/glm.hpp>
 
+#include "Globals.h"
 #include "ResourceHandle.h"
 #include "GraphicsEngine.h"
 #include "Logger.h"
-
-extern Logger* appLogger;
 
 ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<ResourceHandle> vertexShader, shared_ptr<ResourceHandle> fragmentShader) : graphicsEngine(graphicsEngine)
 {
@@ -35,7 +34,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	}
 	catch (glutil::CompileLinkException e)
 	{
-		appLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
+		globalLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
 	}
 
 	//Compile fragment shader
@@ -45,7 +44,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	}
 	catch (glutil::CompileLinkException e)
 	{
-		appLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
+		globalLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
 	}
 
 	//Link the vertex and fragment shader
@@ -55,7 +54,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	}
 	catch (glutil::CompileLinkException e)
 	{
-		appLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
+		globalLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
 	}
 
 	//Check the program linking status
@@ -76,7 +75,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 		glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &logLength);
 		infoLog = new char[logLength + 10];
 		glGetProgramInfoLog(shaderProgram, logLength + 10, 0, infoLog);
-		appLogger->eWriteLog(infoLog, LogLevel::Error, { "Graphics" });
+		globalLogger->eWriteLog(infoLog, LogLevel::Error, { "Graphics" });
 		delete[] infoLog;
 	}
 
@@ -89,6 +88,12 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	if (matrixBlockIndex != GL_INVALID_INDEX)
 	{
 		glUniformBlockBinding(shaderProgram, matrixBlockIndex, 1);
+	}
+
+	GLuint lightBlockIndex = glGetUniformBlockIndex(shaderProgram, "LightBlock");
+	if (lightBlockIndex != GL_INVALID_INDEX)
+	{
+		glUniformBlockBinding(shaderProgram, lightBlockIndex, 2);
 	}
 
 	glUseProgram(shaderProgram);

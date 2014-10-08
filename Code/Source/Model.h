@@ -19,6 +19,7 @@ private:
 public:
 	//Needs virtual destructor?
 	virtual void draw(dmat4 modelToWorld) = 0;
+	virtual bool castsShadows() = 0;
 };
 
 #endif

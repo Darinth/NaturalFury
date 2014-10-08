@@ -12,14 +12,16 @@
 #include <fstream>
 #include <sstream>
 
+#include "Globals.h"
 #include "GraphicsEngine.h"
 #include "Logger.h"
 #include "lodepng.h"
 #include "ThreadSafeStream.h"
 #include "ShaderProgram.h"
 #include "GraphicsEngineStateVariable.h"
-
-extern Logger* appLogger;
+#include "GraphicsEngineTexture.h"
+#include "ResourceHandle.h"
+#include "ResourceCache.h"
 
 bool graphicsFunctionsLoaded = false;
 
@@ -183,7 +185,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	}
 	catch (glutil::CompileLinkException e)
 	{
-		appLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
+		globalLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
 	}
 
 	delete fileText;
@@ -192,7 +194,7 @@ GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
 	return shader;
 }
 
-GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> vertShaderBase, shared_ptr<ResourceHandle> fragShaderBase) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0)
+GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -218,12 +220,14 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> ver
 	doErrorCheck();
 
 	//Get texture units and write it to a log.
-	GLint maxTextureUnits;
 	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
+	glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxArrayTextureLayers);
 
 	stringstream temp;
 	temp << "Max Texture Units: " << maxTextureUnits << endl;
-	appLogger->eWriteLog(temp.str().c_str(), LogLevel::Info, { "Graphics" });
+	temp << "Max Array Texture Layers: " << maxArrayTextureLayers << endl;
+	globalLogger->eWriteLog(temp.str().c_str(), LogLevel::Info, { "Graphics" });
+
 
 	//Create camera to clip matrix. Complex mathy stuffs.
 	cameraToClip = glm::mat4(1.0);
@@ -259,8 +263,12 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> ver
 
 	doErrorCheck();
 
+	shared_ptr<ResourceHandle> vertShaderBase = globalResourceCache->gethandle("ColorShader.vert");
+	shared_ptr<ResourceHandle> fragShaderBase = globalResourceCache->gethandle("ColorShader.frag");
+
 	ShaderProgram tempProgram(this, vertShaderBase, fragShaderBase);
 
+	//Setup matrix block
 	GLuint matrixBlockIndex = glGetUniformBlockIndex(tempProgram.shaderProgram, "MatrixBlock");
 	GLint matrixBlockSize;
 	glGetActiveUniformBlockiv(tempProgram.shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
@@ -270,16 +278,40 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> ver
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, matrixBlockBuffer);
 
 	glUseProgram(tempProgram.shaderProgram);
-	const GLchar *uniformNames[] =
+	const GLchar *matrixBlockUniformNames[] =
 	{
 		"MatrixBlock.modelToCameraMatrix",
 		"MatrixBlock.cameraToClipMatrix"
 	};
 
 	GLuint matrixBlockUniformIndices[2];
-	glGetUniformIndices(tempProgram.shaderProgram, 2, uniformNames, matrixBlockUniformIndices);
+	glGetUniformIndices(tempProgram.shaderProgram, 2, matrixBlockUniformNames, matrixBlockUniformIndices);
 
 	glGetActiveUniformsiv(tempProgram.shaderProgram, 2, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
+
+	doErrorCheck();
+
+	//Setup light block
+	GLuint lightBlockIndex = glGetUniformBlockIndex(tempProgram.shaderProgram, "LightBlock");
+	GLint lightBlockSize;
+	glGetActiveUniformBlockiv(tempProgram.shaderProgram, lightBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &lightBlockSize);
+	glGenBuffers(1, &lightBlockBuffer);
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferData(GL_UNIFORM_BUFFER, lightBlockSize, NULL, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, lightBlockBuffer);
+
+	glUseProgram(tempProgram.shaderProgram);
+	const GLchar *lightBlockUniformNames[] =
+	{
+		"LightBlock.ambientLight",
+		"LightBlock.sun.color",
+		"LightBlock.sun.invDirection"
+	};
+
+	GLuint lightBlockUniformIndices[4];
+	glGetUniformIndices(tempProgram.shaderProgram, 3, lightBlockUniformNames, lightBlockUniformIndices);
+
+	glGetActiveUniformsiv(tempProgram.shaderProgram, 3, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
 
 	doErrorCheck();
 
@@ -288,13 +320,15 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext, shared_ptr<ResourceHandle> ver
 
 	setModelToWorld(glm::dmat4(1.0));
 	setWorldToCamera(glm::dmat4(1.0));
+	setAmbientLight(glm::vec3(0.2, 0.2, 1.0));
+	setSunlight(glm::vec3(0.8, 0.8, 0.8), glm::vec3(-1.0, -1.0, -1.0));
 }
 
 GraphicsEngine::~GraphicsEngine()
 {
 	//Log error if graphics engine deconstructed for some reason while still claimed, this shouldn't ever happen.
 	if (isClaimed())
-		appLogger->eWriteLog("GraphicsEngine deconstructed while still owned.", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("GraphicsEngine deconstructed while still owned.", LogLevel::Warning, { "Graphics" });
 
 	//Delete rendering context
 	wglDeleteContext(renderingContext);
@@ -374,34 +408,34 @@ bool GraphicsEngine::doErrorCheck()
 	//otherwise log the error and return true
 	else if (error == GL_INVALID_ENUM)
 	{
-		appLogger->eWriteLog("doErrorCheck: GL_INVALID_ENUM", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("doErrorCheck: GL_INVALID_ENUM", LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 	else if (error == GL_INVALID_VALUE)
 	{
-		appLogger->eWriteLog("doErrorCheck: GL_INVALID_VALUE", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("doErrorCheck: GL_INVALID_VALUE", LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 	else if (error == GL_INVALID_OPERATION)
 	{
-		appLogger->eWriteLog("doErrorCheck: GL_INVALID_OPERATION", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("doErrorCheck: GL_INVALID_OPERATION", LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 	else if (error == GL_INVALID_FRAMEBUFFER_OPERATION)
 	{
-		appLogger->eWriteLog("doErrorCheck: GL_INVALID_FRAMEBUFFER_OPERATION", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("doErrorCheck: GL_INVALID_FRAMEBUFFER_OPERATION", LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 	else if (error == GL_OUT_OF_MEMORY)
 	{
-		appLogger->eWriteLog("doErrorCheck: GL_OUT_OF_MEMORY", LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog("doErrorCheck: GL_OUT_OF_MEMORY", LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 	else
 	{
 		stringstream temp;
 		temp << "doErrorCheck: UNKNOWN GL ERROR STATE: " << error;
-		appLogger->eWriteLog(temp.str(), LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog(temp.str(), LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 }
@@ -429,7 +463,7 @@ void GraphicsEngine::drawCylinder(const glm::dmat4& modelToWorld, double radius,
 	glBindVertexArray(cylinderVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, cubeTexture);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray);
 
 	doErrorCheck();
 
@@ -454,16 +488,27 @@ void GraphicsEngine::clearScreen()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void GraphicsEngine::bindCubeTextureArray()
+void GraphicsEngine::freeTextureFromArray(string name, unsigned int num)
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to freeTextureArrayIndex while context not active");
+
+	loadedTextures.erase(name);
+
+	freeTextureIndices.push(num);
+}
+
+void GraphicsEngine::bindTextureArray()
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
 		throw exception("Request to bindCubeTextureArray while context not active");
 	//Generate texture
-	glGenTextures(1, &cubeTexture);
+	glGenTextures(1, &textureArray);
 	//Activate and bind texture
 	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, cubeTexture);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray);
 
 	//Setup texture
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -472,51 +517,76 @@ void GraphicsEngine::bindCubeTextureArray()
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	//Load data to texture array.
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, cubeTextureHeight, cubeTextureWidth, cubeTextureCount, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cubeTextureData[0]);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, textureArrayHeight, textureArrayWidth, textureArrayCount, 0, GL_RGBA, GL_UNSIGNED_BYTE, &textureArrayData[0]);
 	//Generate mipmaps now!!!
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
 	//Log the cube array size
 	stringstream temp;
-	temp << "Cube Array Size: " << cubeTextureData.size();
-	appLogger->eWriteLog(temp.str(), LogLevel::Info, { "Graphics" });
-
-	//Clear the data out of the cube array
-	cubeTextureData.clear();
+	temp << "Cube Array Size: " << textureArrayData.size();
+	globalLogger->eWriteLog(temp.str(), LogLevel::Info, { "Graphics" });
 }
 
-unsigned int GraphicsEngine::loadTextureToCubeArray(string fileName)
+shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadRawToTextureArray(string textureName, unsigned char* texture, unsigned int width, unsigned int height)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
-		throw exception("Request to loadTextureToCubeArray while context not active");
-	//Holds data
-	vector<unsigned char> data;
-	unsigned int width, height;
-	unsigned int oldSize;
+		throw exception("Request to loadRawToTextureArray while context not active");
 
-	//load the the data into the texture
-	lodepng::decode(data, width, height, fileName.c_str());
+	unsigned int oldSize;
+	unsigned int dataSize = width * height * 4;
+
+	if (loadedTextures.count(textureName) > 0)
+	{
+		return loadedTextures[textureName].lock();
+	}
 
 	//If this is the first texture, save the width and height
-	if (cubeTextureCount == 0)
+	if (textureArrayCount == 0)
 	{
-		cubeTextureWidth = width;
-		cubeTextureHeight = height;
+		textureArrayWidth = width;
+		textureArrayHeight = height;
 	}
 
 	//If width & height of new textures are incorrect, abort.
-	if (width != cubeTextureWidth || height != cubeTextureHeight)
+	if (width != textureArrayWidth || height != textureArrayHeight)
 		return 0;
 
 	//Save the current texture size
-	oldSize = cubeTextureData.size();
+	oldSize = textureArrayData.size();
 	//Resize the cubeTextureData to hold the new data
-	cubeTextureData.resize(cubeTextureData.size() + data.size());
+	textureArrayData.resize(textureArrayData.size() + dataSize);
 	//Copy the data into the cubeTextureData array.
-	copy(data.begin(), data.end(), cubeTextureData.begin() + oldSize);
+	copy(texture, texture + dataSize, textureArrayData.begin() + oldSize);
 
-	return cubeTextureCount++;
+	shared_ptr<GraphicsEngineTexture> returnTexture(new GraphicsEngineTexture(this, textureName, textureArrayCount++));
+
+	loadedTextures[textureName] = returnTexture;
+
+	return loadedTextures[textureName].lock();
+}
+
+shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadPNGToTextureArray(string fileName)
+{
+	lock_guard<recursive_mutex> lock(objectMutex);
+	if (!isClaimed())
+		throw exception("Request to loadPNGToTextureArray while context not active");
+
+	if (loadedTextures.count(fileName) > 0)
+	{
+		return loadedTextures[fileName].lock();
+	}
+
+	//Holds data
+	vector<unsigned char> data;
+	unsigned int width, height;
+
+	shared_ptr<ResourceHandle> imageHandle = globalResourceCache->gethandle(fileName);
+
+	//load the the data into the texture
+	lodepng::decode(data, width, height, (unsigned char*)imageHandle->resource, imageHandle->resourceSize);
+
+	return loadRawToTextureArray(fileName, &data[0], width, height);
 }
 
 void GraphicsEngine::textToScreen(string text)
@@ -751,4 +821,24 @@ void GraphicsEngine::updateCameraToClip()
 void GraphicsEngine::swapBuffers()
 {
 	SwapBuffers(deviceContext);
+}
+
+void GraphicsEngine::setAmbientLight(glm::vec3 ambientLight)
+{
+	this->ambientLight = ambientLight;
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[0], 12, &this->ambientLight);
+}
+
+void GraphicsEngine::setSunlight(glm::vec3 color, glm::vec3 direction)
+{
+	this->sunColor = color;
+	this->sunDirection = glm::normalize(direction);
+
+	glm::vec3 invDirection = -this->sunDirection;
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[1], 12, &this->sunColor);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[2], 12, &invDirection);
 }
