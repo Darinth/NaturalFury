@@ -16,6 +16,7 @@ using namespace std;
 
 #include "Globals.h"
 #include "Logger.h"
+#include "Format.h"
 
 const unsigned int fileNameLength = 1024;
 
@@ -45,7 +46,7 @@ bool ZipResourceSource::open()
 	//Write a log and return false on error
 	if (zipFile == nullptr)
 	{
-		globalLogger->eWriteLog(string("Failed to open ZipFile ") + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Failed to open ZipFile \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 		return false;
 	}
 
@@ -56,7 +57,7 @@ bool ZipResourceSource::open()
 	//If we failed to locate the manifest, write the log, close the zip, and return false.
 	if (result != UNZ_OK)
 	{
-		globalLogger->eWriteLog(string("ZipFile ") + zipFileName + " contains no manifest.xml", LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("ZipFile \\{0} contains no manifest.xml", zipFileName), LogLevel::Warning, { "Resource" });
 		unzClose(zipFile);
 		return false;
 	}
@@ -66,7 +67,7 @@ bool ZipResourceSource::open()
 	//If the failed to the the file info, write the log, close the zip, and return false.
 	if (result != UNZ_OK)
 	{
-		globalLogger->eWriteLog(string("Failed to get manifest.xml file info from ") + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Failed to get manifest.xml file info from \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 		unzClose(zipFile);
 		return false;
 	}
@@ -111,7 +112,7 @@ bool ZipResourceSource::open()
 	//If we have an error... write the log, close the zip, and return false
 	if (result != UNZ_OK)
 	{
-		globalLogger->eWriteLog(string("Failed to go to first file of ") + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Failed to go to first file of \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 		unzClose(zipFile);
 		return false;
 	}
@@ -126,7 +127,7 @@ bool ZipResourceSource::open()
 		//If we have an error... write the log, close the zip, and return false
 		if (result != UNZ_OK)
 		{
-			globalLogger->eWriteLog(string("Failed to get file info from ") + zipFileName, LogLevel::Warning, { "Resource" });
+			globalLogger->eWriteLog(formatToString("Failed to get file info from \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 			unzClose(zipFile);
 			return false;
 		}
@@ -144,7 +145,7 @@ bool ZipResourceSource::open()
 	//If the result doesn't say end of file, we've got an error.
 	if (result != UNZ_END_OF_LIST_OF_FILE)
 	{
-		globalLogger->eWriteLog(string("Error occured reading ") + zipFileName + " before end of file", LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Error occured reading \\{0} before end of file", zipFileName), LogLevel::Warning, { "Resource" });
 		unzClose(zipFile);
 		return false;
 	}
@@ -165,14 +166,14 @@ int ZipResourceSource::getRawResourceSize(const string &resource) const
 	//Can't get resources with closed zip file
 	if (!zipOpen)
 	{
-		globalLogger->eWriteLog(string("Attempt to get resource information from unopened zip file: ") + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Attempt to get resource information from unopened zip file: \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 
 	//File not found
 	if (positionMap.count(resource) == 0)
 	{
-		globalLogger->eWriteLog(string("File ") + resource + " not found in " + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("File \\{0} not found in \\{1}.", resource, zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 
@@ -185,7 +186,7 @@ int ZipResourceSource::getRawResourceSize(const string &resource) const
 	//Error getting file info
 	if (result != UNZ_OK)
 	{
-		globalLogger->eWriteLog(string("Failed to retieve file info for ") + resource + " from " + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Failed to retieve file info for \\{0} from \\{1}", resource, zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 
@@ -202,14 +203,14 @@ int ZipResourceSource::getRawResource(const string &resource, char * buffer) con
 	//Zip file not open
 	if (!zipOpen)
 	{
-		globalLogger->eWriteLog(string("Attempt to get resource from unopened zip file: ") + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Attempt to get resource from unopened zip file: \\{0}", zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 
 	//File not in zip file
 	if (positionMap.count(resource) == 0)
 	{
-		globalLogger->eWriteLog(string("File ") + resource + " not found in " + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("File \\{0} not found in \\{1}.", resource, zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 
@@ -222,7 +223,7 @@ int ZipResourceSource::getRawResource(const string &resource, char * buffer) con
 	//Error: We failed to retrieve the info
 	if (result != UNZ_OK)
 	{
-		globalLogger->eWriteLog(string("Failed to retieve file info for ") + resource + " from " + zipFileName, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Failed to retieve file info for \\{0} from \\{1}", resource, zipFileName), LogLevel::Warning, { "Resource" });
 		return 0;
 	}
 

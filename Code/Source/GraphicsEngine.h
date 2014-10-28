@@ -52,6 +52,13 @@ enum class StateVariable
 	ShaderProgram
 };
 
+struct PointLightLocationData
+{
+	unsigned int enabled;
+	unsigned int color;
+	unsigned int location;
+};
+
 class GraphicsEngine : public Lockable
 {
 private:
@@ -81,6 +88,9 @@ private:
 	//Matrix to convert coordinates from world to camera. Multiplied with modelToWorld matrix and then convert to floats before being uploaded to openGL.
 	glm::dmat4 worldToCamera;
 
+	//Matrix to hold the composition of modelToWorld and worldToCamera.
+	glm::mat4 modelToCamera;
+
 	//VAO and Buffer for drawing plain old cylinder.
 	//Used as placeholder for stuff there is no model for yet.
 	GLuint cylinderVAO;
@@ -92,6 +102,8 @@ private:
 	//Variables used when loading textures.
 	GLint maxTextureUnits;
 	GLint maxArrayTextureLayers;
+	GLint maxVertexUniformComponents;
+	GLint maxFragmentUniformComponents;
 
 	//Shader uniform for cube texture.
 	GLuint textureArrayUniform;
@@ -112,7 +124,10 @@ private:
 	//Tracks loaded textures.
 	unordered_map<string, weak_ptr<GraphicsEngineTexture>> loadedTextures;
 
+	//Tracks texture indices available for reuse
 	queue<unsigned int> freeTextureIndices;
+
+	//Marks a texture index as available for reuse, removes it from loadedTextures
 	void freeTextureFromArray(string name, unsigned int num);
 
 	//Variables to deal with matrix block.
@@ -122,6 +137,9 @@ private:
 	//Variables to deal with light block.
 	GLuint lightBlockBuffer;
 	GLint lightBlockUniformOffsets[4];
+
+	int pointLightCount;
+	PointLightLocationData *pointLightOffsets;
 
 	//Sunlight information
 	glm::vec3 sunColor;
@@ -139,9 +157,6 @@ private:
 	int viewportWidth;
 	int viewportHeight;
 
-	//makes a shader from a file
-	GLuint makeShaderFromFile(GLenum shaderType, string filePath);
-
 	//Perform viewport update, if needed
 	void updateViewport();
 
@@ -154,6 +169,8 @@ private:
 	void updateModelToCamera();
 	void updateCameraToClip();
 	glm::vec3 ambientLight;
+
+	void updateSunlight();
 
 public:
 	//Constructor. Takes a device context.
@@ -174,15 +191,11 @@ public:
 	//Is the context claimed by the current thread?
 	bool isClaimed();
 
-	//Sets the PoV for standard program drawing
-	void setPOV(double x, double y, double z, double angDegZ, double angDegX);
-
 	//Runs an openGL error check and prints errors to the globalLogger.
 	bool doErrorCheck();
 
-	void prepProgram(ShaderProgram* program);
-
 	//Draws a cylinder at the given coordinate with a given radius and height. Triangles is currently ignored, but will eventually specify the number of triangles to use to draw the cylinder sides.
+	//This function does not work, but is being kept in temporarily until the proper replacement model is created.
 	void drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles);
 
 	//Clears the screen
@@ -209,12 +222,18 @@ public:
 	//Sets opengl state and tracks it so it can be later reverted.
 	void setEngineParameter(StateVariable param, GraphicsEngineStateVariable);
 
+	//Selects program for use
 	void useProgram(ShaderProgram& shaderProgram);
 
+	//To engine matrices
 	void setModelToWorld(glm::dmat4 modelToWorld);
 	void setWorldToCamera(glm::dmat4 worldToCamera);
 	void setCameraToClip(glm::mat4 cameraToClip);
+
+	//Swap front/back buffers
 	void swapBuffers();
+
+	//Sets lighting
 	void setAmbientLight(glm::vec3 ambientLight);
 	void setSunlight(glm::vec3 color, glm::vec3 direction);
 };

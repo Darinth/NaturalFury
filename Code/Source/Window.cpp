@@ -11,11 +11,13 @@
 #include <Windows.h>
 #include <string>
 #include <iostream>
+#include <sstream>
 using namespace std;
 
 #include "Window.h"
 #include "KeyEnum.h"
 #include "PlayerView.h"
+#include "Format.h"
 
 //Includes for graphics engine testing
 #include "Globals.h"
@@ -28,6 +30,7 @@ using namespace std;
 #include "Scene.h"
 #include "CubeModel.h"
 #include "SceneNode.h"
+#include "Logger.h"
 
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
@@ -46,15 +49,17 @@ Window* appWindow;
 
 struct Window::Pimpl
 {
+	//Windows specific data, kept out of class definition
 	HWND windowHandle;
 	HDC deviceContext;
 	PIXELFORMATDESCRIPTOR pixelFormatDescriptor;
 	WNDCLASSEX windowClass;
 };
 
-Window::Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView) : fullScreen(fullScreen), width(width), height(height), bits(bits)
+Window::Window(string title, string className, bool fullScreen, int width, int height, int bits) : fullScreen(fullScreen), width(width), height(height), bits(bits), userInterface(nullptr)
 {
 	//Initialize key translations
+	translations[16] = KeyEnum::Leftshift;
 	translations[65] = KeyEnum::A;
 	translations[68] = KeyEnum::D;
 	translations[69] = KeyEnum::E;
@@ -62,19 +67,19 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	translations[83] = KeyEnum::S;
 	translations[87] = KeyEnum::W;
 
+	//All keys are up.
 	for (int I = 0; I < (unsigned short)KeyEnum::TotalKeys; I++)
 	{
 		keyStates[I] = false;
 	}
 
-	//Store the player view to forward messages to.
-	this->playerView = playerView;
 	//Application only supports single window. If there's a need for multiwindow display, this can be upgraded to support it.
 	if (appWindow != nullptr)
 		throw exception("Attempt to create second window!");
 	else
 		appWindow = this;
 
+	//Setup Pimpl
 	pimpl = new Pimpl;
 
 	//Prepare pixelFormatDescriptor
@@ -175,6 +180,7 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	AdjustWindowRectEx(&windowRect, dwStyle, FALSE, dwExStyle);
 
 	/*      Class registerd, so now create our window*/
+	//This will trigger a WM_CREATE message for the windows message handler routine, which in turn creates the graphics engine.
 	pimpl->windowHandle = CreateWindowEx(NULL, className.c_str(),  //class name
 		title.c_str(),       //app name
 		dwStyle |
@@ -194,8 +200,10 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 		throw exception("Window Creation Failed");
 	}
 
+	//Display the window
 	show();
 
+	//Register us to receive raw mouse and keyboard data.
 	RAWINPUTDEVICE Rid[2];
 	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	Rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
@@ -207,96 +215,35 @@ Window::Window(string title, string className, bool fullScreen, int width, int h
 	Rid[1].hwndTarget = pimpl->windowHandle;
 	RegisterRawInputDevices(Rid, 2, sizeof(Rid[0]));
 
-	pimpl->deviceContext = GetDC(pimpl->windowHandle);
-
-	graphicsEngine = new GraphicsEngine(pimpl->deviceContext);
+	//Set the graphicsEngine's viewport.
 	graphicsEngine->setViewport(width, height);
-
-	shared_ptr<ResourceHandle> vertShader = globalResourceCache->gethandle("ColorShader.vert");
-	shared_ptr<ResourceHandle> fragShader = globalResourceCache->gethandle("ColorShader.frag");
-
-	debugCameraPosition = glm::dvec3(0, 3, 0);
-	debugCameraRotation = 0;
-	debugCameraTilt = 0;
-
-	shader = new ShaderProgram(graphicsEngine, vertShader, fragShader);
-
-	cubeModel = new shared_ptr<CubeModel>(new CubeModel(graphicsEngine));
-
-	scene = new Scene(graphicsEngine);
-
-	glm::dmat4 modelToWorld(1.0); 
-	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(0, -0.5, 0));
-	modelToWorld = glm::gtc::matrix_transform::scale(modelToWorld, glm::dvec3(200.0, 1, 200.0));
-	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
-	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 2));
-	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
-	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
-	scene->addNode(shared_ptr<SceneNode>(new SceneNode(*cubeModel, modelToWorld)));
-	autoUpdate = true;
-	updateScene();
 }
 
 Window::~Window()
 {
+	//Reset windows screen
 	if (fullScreen)
 	{
 		ChangeDisplaySettings(NULL, 0);
 		ShowCursor(TRUE);
 	}
 
+	//Relinquish and delete graphics engine
+	graphicsEngine->relinquish();
+
+	delete graphicsEngine;
+
+	//Tell windows to destroy our window
+	DestroyWindow(pimpl->windowHandle);
+
+	//Set the application window handle to null
 	appWindow = nullptr;
 
-	delete cubeModel;
-
-	delete scene;
-
-	delete shader;
-
+	//Delete Pimpl
 	delete pimpl;
-
-	graphicsEngine->relinquish();
-	delete graphicsEngine;
 }
 
-void Window::shiftDebugCamera(glm::dvec3 shift)
-{
-	using namespace glm::gtc::matrix_transform;
-	dvec4 finalShift = dvec4(shift, 1.0) * rotate(rotate(glm::dmat4(1.0), debugCameraTilt, dvec3(1.0, 0.0, 0.0)), debugCameraRotation, dvec3(0.0, -1.0, 0.0));
-	debugCameraPosition += dvec3(finalShift);
-	if (autoUpdate) updateScene();
-}
-
-void Window::rotateDebugCamera(double angle)
-{
-	debugCameraRotation += angle;
-	if(autoUpdate) updateScene();
-}
-
-void Window::tiltDebugCamera(double angle)
-{
-	debugCameraTilt += angle;
-	if (autoUpdate) updateScene();
-}
-
-void Window::updateScene()
-{
-	glm::dmat4 debugCameraTransform(1.0);
-	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraTilt, glm::dvec3(1.0, 0.0, 0.0));
-	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraRotation, glm::dvec3(0.0, -1.0, 0.0));
-	debugCameraTransform = glm::gtc::matrix_transform::translate(debugCameraTransform, glm::dvec3(-debugCameraPosition.x, -debugCameraPosition.y, -debugCameraPosition.z));
-	graphicsEngine->setWorldToCamera(debugCameraTransform);
-
-	graphicsEngine->clearScreen();
-	scene->draw();
-	graphicsEngine->swapBuffers();
-}
-
-void Window::toggleAutoUpdate()
-{
-	autoUpdate = !autoUpdate;
-}
-
+//Windows message handler, forwards messages onto the window object.
 LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (appWindow != nullptr)
@@ -305,7 +252,7 @@ LRESULT CALLBACK staticHandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPA
 	}
 	else
 	{
-		//TODO: Log error here. It's possible that we might be receiving messages after window destruction. If this is the case, we need to figure out what to do with them.
+		globalLogger->eWriteLog(formatToString("Message received after window destruction: \\{0}", message), LogLevel::Warning, { "General" });
 		return (DefWindowProc(hwnd, message, wParam, lParam));
 	}
 }
@@ -318,26 +265,27 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 
 		if (message == WM_CREATE)
 		{
-			HDC deviceContext = GetDC((HWND)windowHandle);
+			pimpl->deviceContext = GetDC((HWND)windowHandle);
 			/*      Pixel format index*/
 			int nPixelFormat;
 
 			/*      Choose best matching format*/
-			nPixelFormat = ChoosePixelFormat(deviceContext, &(pimpl->pixelFormatDescriptor));
+			nPixelFormat = ChoosePixelFormat(pimpl->deviceContext, &(pimpl->pixelFormatDescriptor));
 
 			/*      Set the pixel format to the device context*/
-			SetPixelFormat(deviceContext, nPixelFormat, &(pimpl->pixelFormatDescriptor));
+			SetPixelFormat(pimpl->deviceContext, nPixelFormat, &(pimpl->pixelFormatDescriptor));
 
 			/*      Create rendering context and make it current
 			*/
-			//graphicsEngine = new GraphicsEngine(deviceContext);
+			graphicsEngine = new GraphicsEngine(pimpl->deviceContext);
 
 			return 0;
 		}
 		//Window closing
 		else if (message == WM_CLOSE)  //window is closing
 		{
-			playerView->windowClosed();
+			if (userInterface)
+				userInterface->windowClose();
 
 			return 0;
 		}
@@ -355,7 +303,7 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 			}
 
 			/*      Reset the viewport to new dimensions*/
-			//graphicsEngine->setViewport(width, height);
+			graphicsEngine->setViewport(width, height);
 
 			return 0;
 		}
@@ -364,44 +312,65 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 			return 0;
 		}
 		//If the left(main) mouse button is pressed
-		else if (message == WM_LBUTTONDOWN)
-			playerView->mouseClick(1);
-		//If the right(secondary) mouse button is pressed
-		else if (message == WM_RBUTTONDOWN)
-			playerView->mouseClick(2);
-		//If the middle(tertiary) mouse button is pressed
-		else if (message == WM_MBUTTONDOWN)
-			playerView->mouseClick(3);
 		else if (message == WM_INPUT && GetFocus() == windowHandle)
 		{
-			UINT dwSize = 40;
-			static BYTE lpb[40];
+			UINT dwSize;
+			RAWINPUT* raw;
 
 			GetRawInputData((HRAWINPUT)lParam, RID_INPUT,
-				lpb, &dwSize, sizeof(RAWINPUTHEADER));
+				nullptr, &dwSize, sizeof(RAWINPUTHEADER));
 
-			RAWINPUT* raw = (RAWINPUT*)lpb;
+			raw = (RAWINPUT *)new char[dwSize];
+
+			GetRawInputData((HRAWINPUT)lParam, RID_INPUT,
+				raw, &dwSize, sizeof(RAWINPUTHEADER));
 
 			if (raw->header.dwType == RIM_TYPEMOUSE)
 			{
-				playerView->mouseMove(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+				if (userInterface)
+				{
+					userInterface->mouseMove(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN)
+						userInterface->mouseDown(1);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN)
+						userInterface->mouseDown(2);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN)
+						userInterface->mouseDown(3);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
+						userInterface->mouseDown(4);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN)
+						userInterface->mouseDown(5);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_1_UP)
+						userInterface->mouseUp(1);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_2_UP)
+						userInterface->mouseUp(2);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_3_UP)
+						userInterface->mouseUp(3);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP)
+						userInterface->mouseUp(4);
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP)
+						userInterface->mouseUp(5);
+				}
 			}
 			else if (raw->header.dwType == RIM_TYPEKEYBOARD)
 			{
 				if (raw->data.keyboard.Flags == RI_KEY_MAKE && !keyStates[(unsigned int)translations[raw->data.keyboard.VKey]])
 				{
 					//KeyDown event
-					playerView->keyDown(translations[raw->data.keyboard.VKey]);
+					if (userInterface)
+						userInterface->keyDown(translations[raw->data.keyboard.VKey]);
 					keyStates[(unsigned int)translations[raw->data.keyboard.VKey]] = true;
 				}
 				else if(raw->data.keyboard.Flags == RI_KEY_BREAK && keyStates[(unsigned int)translations[raw->data.keyboard.VKey]])
 				{
 					//KeyUp event
-					playerView->keyUp(translations[raw->data.keyboard.VKey]);
+					if (userInterface)
+						userInterface->keyUp(translations[raw->data.keyboard.VKey]);
 					keyStates[(unsigned int)translations[raw->data.keyboard.VKey]] = false;
 				}
 				
 			}
+			delete (char*)raw;
 		}
 		else
 		{
@@ -409,11 +378,11 @@ int Window::handleMessage(void* windowHandle, unsigned int message, unsigned int
 	}
 	catch (exception e)
 	{
-		//*getLog(LogEnum::ERR) << "ERROR: Error occured in Windows Message Handler.\n" << e.what() << endl;
+		globalLogger->eWriteLog(formatToString("ERROR: Error occured in Windows Message Handler. \\{0}", e.what()), LogLevel::Warning, { "Graphics" });
 	}
 	catch (...)
 	{
-		//*getLog(LogEnum::ERR) << "ERROR: Error occured in Windows Message Handler. Unknown Error." << endl;
+		globalLogger->eWriteLog("ERROR: Error occured in Windows Message Handler. Unknown Error.", LogLevel::Warning, { "Graphics" });
 	}
 
 	//Apply any other processing windows will do for messages
@@ -424,4 +393,14 @@ void Window::show()
 {
 	ShowWindow(pimpl->windowHandle, SW_SHOW);      //display window
 	UpdateWindow(pimpl->windowHandle);             //update window
+}
+
+GraphicsEngine* Window::getGraphicsEngine()
+{
+	return graphicsEngine;
+}
+
+void Window::setUserInterface(UserInterface *userInterface)
+{
+	this->userInterface = userInterface;
 }

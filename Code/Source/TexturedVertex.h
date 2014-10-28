@@ -13,11 +13,18 @@
 
 struct TexturedVertex
 {
+	//Location of the vertex
 	Vec3<float> location;
+	//Normal for the vertex
 	Vec3<float> normal;
+	//Texture number
 	unsigned char texture;
+	//Texture Coordinates
 	unsigned char textureX;
 	unsigned char textureY;
+	//Diffuse and specular lighting components
+	unsigned char diffuse;
+	unsigned char specular;
 	TexturedVertex& operator+=(Vec3<float> modifier)
 	{
 		location += modifier;

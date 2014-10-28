@@ -6,6 +6,8 @@
 // OS-Aware
 // See GraphicsEngine.h for class usage details
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "CustomMemory.h"
 
 #include <thread>
@@ -22,10 +24,13 @@
 #include "GraphicsEngineTexture.h"
 #include "ResourceHandle.h"
 #include "ResourceCache.h"
+#include "Format.h"
 
 bool graphicsFunctionsLoaded = false;
 
 thread::id nullThread = thread::id();
+
+const int pointLightMaxCount = 1000;
 
 extern const TexturedTriangle cubeVertices[] =
 {
@@ -138,63 +143,7 @@ bool loadGraphicsFunctions()
 	return (LoadFunctions() != LS_LOAD_FAILED);
 }
 
-GLuint GraphicsEngine::makeShaderFromFile(GLenum shaderType, string filePath)
-{
-	if (!isClaimed())
-		throw exception("Attempt create shader for unclaimed GraphicsContext");
-
-	lock_guard<recursive_mutex> lock(objectMutex);
-
-	//Size of the file the shader is being made from
-	unsigned int fileSize;
-	//Text of shader
-	char* fileText;
-	//Shader number
-	GLuint shader = 0;
-	//Input filestream
-	ifstream fileStream;
-
-	//Enable exception for fail and bad operations
-	fileStream.exceptions(ios::failbit | ios::badbit);
-
-	//Open the file
-	fileStream.open(filePath, ios::binary);
-	//Move to end
-	fileStream.seekg(0, ios::end);
-	//Get location of end
-	fileSize = (int)fileStream.tellg();
-	//Move to begining
-	fileStream.seekg(0);
-
-	//Allocate enough storage for contents of file
-	fileText = new char[fileSize + 100];
-
-	//Read contents of file
-	fileStream.read(fileText, fileSize);
-
-	//Close file
-	fileStream.close();
-
-	//Add null terminator
-	fileText[fileSize] = '\0';
-
-	//Attempt to compile shader using gl utility library
-	try
-	{
-		shader = glutil::CompileShader(shaderType, fileText);
-	}
-	catch (glutil::CompileLinkException e)
-	{
-		globalLogger->eWriteLog(e.what(), LogLevel::Error, { "Graphics" });
-	}
-
-	delete fileText;
-
-	//return shader number
-	return shader;
-}
-
-GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0)
+GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0), textureArray(0), textureArrayCount(0)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -219,14 +168,20 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 	//Check for other openGL errors
 	doErrorCheck();
 
+	//Setup clear color and depth
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearDepth(1.0f);
+
+	//Check for other openGL errors
+	doErrorCheck();
+
 	//Get texture units and write it to a log.
 	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
 	glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxArrayTextureLayers);
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertexUniformComponents);
+	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragmentUniformComponents);
 
-	stringstream temp;
-	temp << "Max Texture Units: " << maxTextureUnits << endl;
-	temp << "Max Array Texture Layers: " << maxArrayTextureLayers << endl;
-	globalLogger->eWriteLog(temp.str().c_str(), LogLevel::Info, { "Graphics" });
+	globalLogger->eWriteLog(formatToString("Max Texture Units: \\{0}\nMax Array Texture Layers: \\{1}\nMax Vertex Uniform Components: \\{2}\nMax Fragment Uniform Components: \\{3}", maxTextureUnits, maxArrayTextureLayers, maxVertexUniformComponents, maxFragmentUniformComponents), LogLevel::Info, { "Graphics" });
 
 
 	//Create camera to clip matrix. Complex mathy stuffs.
@@ -263,8 +218,8 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 
 	doErrorCheck();
 
-	shared_ptr<ResourceHandle> vertShaderBase = globalResourceCache->gethandle("ColorShader.vert");
-	shared_ptr<ResourceHandle> fragShaderBase = globalResourceCache->gethandle("ColorShader.frag");
+	shared_ptr<ResourceHandle> vertShaderBase = globalResourceCache->gethandle("TextureShader.vert");
+	shared_ptr<ResourceHandle> fragShaderBase = globalResourceCache->gethandle("TextureShader.frag");
 
 	ShaderProgram tempProgram(this, vertShaderBase, fragShaderBase);
 
@@ -303,25 +258,111 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 	glUseProgram(tempProgram.shaderProgram);
 	const GLchar *lightBlockUniformNames[] =
 	{
+		"LightBlock.eyeDirection",
 		"LightBlock.ambientLight",
 		"LightBlock.sun.color",
 		"LightBlock.sun.invDirection"
 	};
 
 	GLuint lightBlockUniformIndices[4];
-	glGetUniformIndices(tempProgram.shaderProgram, 3, lightBlockUniformNames, lightBlockUniformIndices);
+	glGetUniformIndices(tempProgram.shaderProgram, 4, lightBlockUniformNames, lightBlockUniformIndices);
 
-	glGetActiveUniformsiv(tempProgram.shaderProgram, 3, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
+	glGetActiveUniformsiv(tempProgram.shaderProgram, 4, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
+
+	glm::vec3 eyeDirection(0.0, 1.0, 0.0);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[0], 12, &(eyeDirection[0]));
+
+	//Debug code, useful to pull a list of all of the uniforms in the program.
+	int activeUniforms;
+	glGetProgramiv(tempProgram.shaderProgram, GL_ACTIVE_UNIFORMS, &activeUniforms);
+
+	stringstream uniforms;
+	for (int I = 0; I < activeUniforms; I++)
+	{
+		int nameLength;
+		char nameBuffer[50];
+		glGetActiveUniformName(tempProgram.shaderProgram, I, 50, &nameLength, nameBuffer);
+		uniforms << nameBuffer << endl;
+	}
+
+	//const int nameLen = strlen(uniformName) + 1;
+	//const GLchar name[nameLen];
+	//GLint uniformSize = 0;
+	//GLenum uniformType = GL_NONE;
+	//glGetActiveUniform(program, uniformIdx, nameLen, NULL,
+	//	&uniformSize, &uniformType, name);
+
+	//unsigned int pointLightCountUniform = glGetUniformLocation(shaderProgram, "numPointLights");
+	//int pointLightCount;
+	//glGetUniformiv(shaderProgram, pointLightCountUniform, &pointLightCount);
+
+	//const GLchar **pointLightUniformNames = new char*[pointLightCount];
+	//pointLightUniformNames[0] = new char[50];
+
+	//Get uniform names for all of the different point lights
+	{
+		//ALL OF THIS POINT LIGHT CODE IS GOING TO BE REDONE
+		//Holds names of the point lights
+		char pointLightEnabledName[50];
+		char pointLightColorName[50];
+		char pointLightLocationName[50];
+		//Workaround to deal with the fact that char** cannot be cast to const char**, copy the pointers after the data has been set.
+		const GLchar *pointLightUniformNames[3];
+		pointLightUniformNames[0] = pointLightEnabledName;
+		pointLightUniformNames[1] = pointLightColorName;
+		pointLightUniformNames[2] = pointLightLocationName;
+
+		PointLightLocationData pointLightTemp[pointLightMaxCount];
+
+		pointLightCount = 0;
+		bool done = false;
+		do
+		{
+			stringstream enabledName;
+			enabledName << "LightBlock.pointLights[" << pointLightCount << "].enabled";
+			strcpy(pointLightEnabledName, enabledName.str().c_str());
+
+			stringstream colorName;
+			colorName << "LightBlock.pointLights[" << pointLightCount << "].color";
+			strcpy(pointLightColorName, colorName.str().c_str());
+
+			stringstream locationName;
+			locationName << "LightBlock.pointLights[" << pointLightCount << "].location";
+			strcpy(pointLightLocationName, locationName.str().c_str());
+
+			glGetUniformIndices(tempProgram.shaderProgram, 3, pointLightUniformNames, &pointLightTemp[pointLightCount].enabled);
+
+			if (pointLightTemp[pointLightCount].enabled == -1)
+			{
+				done = true;
+			}
+			else
+			{
+				pointLightCount++;
+			}
+		}
+		while (!done && pointLightCount < pointLightMaxCount);
+
+		pointLightOffsets = new PointLightLocationData[pointLightCount];
+	}
+	
 
 	doErrorCheck();
 
+	//Update CameraToClip matrix
 	updateCameraToClip();
 	doErrorCheck();
 
+	//Set modelToWorld & WorldToCamera matrices.
 	setModelToWorld(glm::dmat4(1.0));
 	setWorldToCamera(glm::dmat4(1.0));
-	setAmbientLight(glm::vec3(0.2, 0.2, 1.0));
-	setSunlight(glm::vec3(0.8, 0.8, 0.8), glm::vec3(-1.0, -1.0, -1.0));
+
+	//Set ambient light levels
+	setAmbientLight(glm::vec3(0.2, 0.2, 0.2));
+	//Set sunlight
+	setSunlight(glm::vec3(0.8, 0.8, 0.8), glm::vec3(0.0, -1.0, 0.0));
 }
 
 GraphicsEngine::~GraphicsEngine()
@@ -329,6 +370,8 @@ GraphicsEngine::~GraphicsEngine()
 	//Log error if graphics engine deconstructed for some reason while still claimed, this shouldn't ever happen.
 	if (isClaimed())
 		globalLogger->eWriteLog("GraphicsEngine deconstructed while still owned.", LogLevel::Warning, { "Graphics" });
+
+	delete pointLightOffsets;
 
 	//Delete rendering context
 	wglDeleteContext(renderingContext);
@@ -374,16 +417,6 @@ float GraphicsEngine::getFrustumScale() const
 float GraphicsEngine::getScreenRatio() const
 {
 	return this->screenRatio;
-}
-
-void GraphicsEngine::setPOV(double x, double y, double z, double angDegZ, double angDegX)
-{
-	lock_guard<recursive_mutex> lock(objectMutex);
-
-	worldToCamera = glm::dmat4();
-	glm::gtc::matrix_transform::rotate(worldToCamera, angDegX, glm::dvec3(1, 0, 0));
-	glm::gtc::matrix_transform::rotate(worldToCamera, angDegZ, glm::dvec3(0, 1, 0));
-	glm::gtc::matrix_transform::translate(worldToCamera, glm::dvec3(x, y, z));
 }
 
 bool GraphicsEngine::isClaimed()
@@ -433,20 +466,16 @@ bool GraphicsEngine::doErrorCheck()
 	}
 	else
 	{
-		stringstream temp;
-		temp << "doErrorCheck: UNKNOWN GL ERROR STATE: " << error;
-		globalLogger->eWriteLog(temp.str(), LogLevel::Warning, { "Graphics" });
+		globalLogger->eWriteLog(formatToString("doErrorCheck: UNKNOWN GL ERROR STATE: \\{0}", error), LogLevel::Warning, { "Graphics" });
 		return true;
 	}
 }
 
-void GraphicsEngine::prepProgram(ShaderProgram* program)
-{
-
-}
-
 void GraphicsEngine::drawCylinder(const glm::dmat4& modelToWorld, double radius, double height, int triangles)
 {
+	//ALL BROKEN CODE
+	throw exception("drawCylinder not implemented, don't call this!");
+
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
 		throw exception("Request to drawCylinder while context not active");
@@ -483,19 +512,17 @@ void GraphicsEngine::clearScreen()
 	//Update the viewport if needed
 	updateViewport();
 	//Clear the screen
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClearDepth(1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void GraphicsEngine::freeTextureFromArray(string name, unsigned int num)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	if (!isClaimed())
-		throw exception("Request to freeTextureArrayIndex while context not active");
 
+	//Remove weak_ptr to texture
 	loadedTextures.erase(name);
 
+	//Add texture index to list of available indexes.
 	freeTextureIndices.push(num);
 }
 
@@ -504,6 +531,9 @@ void GraphicsEngine::bindTextureArray()
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
 		throw exception("Request to bindCubeTextureArray while context not active");
+	//Delete old texture if we've done this before.
+	if (textureArray)
+		glDeleteTextures(1, &textureArray);
 	//Generate texture
 	glGenTextures(1, &textureArray);
 	//Activate and bind texture
@@ -522,20 +552,17 @@ void GraphicsEngine::bindTextureArray()
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
 	//Log the cube array size
-	stringstream temp;
-	temp << "Cube Array Size: " << textureArrayData.size();
-	globalLogger->eWriteLog(temp.str(), LogLevel::Info, { "Graphics" });
+	globalLogger->eWriteLog(formatToString("Cube Array Size: \\{0}", textureArrayData.size()), LogLevel::Info, { "Graphics" });
 }
 
 shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadRawToTextureArray(string textureName, unsigned char* texture, unsigned int width, unsigned int height)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
-	if (!isClaimed())
-		throw exception("Request to loadRawToTextureArray while context not active");
 
 	unsigned int oldSize;
 	unsigned int dataSize = width * height * 4;
 
+	//Just return a shared pointer if we've already loaded this texture.
 	if (loadedTextures.count(textureName) > 0)
 	{
 		return loadedTextures[textureName].lock();
@@ -550,20 +577,33 @@ shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadRawToTextureArray(string t
 
 	//If width & height of new textures are incorrect, abort.
 	if (width != textureArrayWidth || height != textureArrayHeight)
-		return 0;
+		return shared_ptr<GraphicsEngineTexture>();
 
-	//Save the current texture size
-	oldSize = textureArrayData.size();
-	//Resize the cubeTextureData to hold the new data
-	textureArrayData.resize(textureArrayData.size() + dataSize);
-	//Copy the data into the cubeTextureData array.
-	copy(texture, texture + dataSize, textureArrayData.begin() + oldSize);
+	shared_ptr<GraphicsEngineTexture> returnTexture;
+	//If we've got a free texture slot, put this one there.
+	if (freeTextureIndices.size() > 0)
+	{
+		unsigned int selectIndex = freeTextureIndices.front();
+		freeTextureIndices.pop();
+		copy(texture, texture + dataSize, textureArrayData.begin() + dataSize*selectIndex);
 
-	shared_ptr<GraphicsEngineTexture> returnTexture(new GraphicsEngineTexture(this, textureName, textureArrayCount++));
+		returnTexture = shared_ptr<GraphicsEngineTexture>(new GraphicsEngineTexture(this, textureName, selectIndex));
+	}
+	else
+	{
+		//Save the current texture size
+		oldSize = textureArrayData.size();
+		//Resize the cubeTextureData to hold the new data
+		textureArrayData.resize(textureArrayData.size() + dataSize);
+		//Copy the data into the cubeTextureData array.
+		copy(texture, texture + dataSize, textureArrayData.begin() + oldSize);
+
+		returnTexture = shared_ptr<GraphicsEngineTexture>(new GraphicsEngineTexture(this, textureName, textureArrayCount++));
+	}
 
 	loadedTextures[textureName] = returnTexture;
 
-	return loadedTextures[textureName].lock();
+	return returnTexture;
 }
 
 shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadPNGToTextureArray(string fileName)
@@ -572,6 +612,7 @@ shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadPNGToTextureArray(string f
 	if (!isClaimed())
 		throw exception("Request to loadPNGToTextureArray while context not active");
 
+	//Return shared_ptr to texture if it's already loaded.
 	if (loadedTextures.count(fileName) > 0)
 	{
 		return loadedTextures[fileName].lock();
@@ -581,16 +622,21 @@ shared_ptr<GraphicsEngineTexture> GraphicsEngine::loadPNGToTextureArray(string f
 	vector<unsigned char> data;
 	unsigned int width, height;
 
+	//Get the handle to the data.
 	shared_ptr<ResourceHandle> imageHandle = globalResourceCache->gethandle(fileName);
 
 	//load the the data into the texture
 	lodepng::decode(data, width, height, (unsigned char*)imageHandle->resource, imageHandle->resourceSize);
 
+	//Load the texture into the texture array
 	return loadRawToTextureArray(fileName, &data[0], width, height);
 }
 
 void GraphicsEngine::textToScreen(string text)
 {
+	//ALL BROKEN CODE
+	throw exception("drawCylinder not implemented, don't call this!");
+
 	lock_guard<recursive_mutex> lock(objectMutex);
 	if (!isClaimed())
 		throw exception("Request to textToScreen while context not active");
@@ -691,6 +737,7 @@ void GraphicsEngine::updateViewport()
 	cameraToClip[0].x = frustumScale * screenRatio;
 	//Turn off viewport update needed
 	viewportUpdateNeeded = false;
+	//Update CameraToClip matrix
 	updateCameraToClip();
 }
 
@@ -700,6 +747,7 @@ void GraphicsEngine::pushEngineState()
 	if (!isClaimed())
 		throw exception("Request to pushEngineState while context not active");
 
+	//Create a new stack element to be popped off when popEngineState is called
 	stateChangeStack.emplace();
 }
 
@@ -709,16 +757,21 @@ void GraphicsEngine::popEngineState()
 	if (!isClaimed())
 		throw exception("Request to popEngineState while context not active");
 
+	//If the stack is empty, something has gone wrong.
 	if (stateChangeStack.empty())
 		throw exception("Attempt to pop engine state with empty stack");
 
+	//get the top element off the stateChange stack.
 	stack<pair<StateVariable, GraphicsEngineStateVariable>>& stateReversions = stateChangeStack.top();
+	//Until we're out of stateReversions...
 	while (!stateReversions.empty())
 	{
+		//Get a reversion, apply it, and remove it from the stack
 		pair<StateVariable, GraphicsEngineStateVariable>& reversion = stateReversions.top();
 		internalSetEngineParameter(reversion.first, reversion.second);
 		stateReversions.pop();
 	}
+	//Pop the element we just reverted off the stateChangeStack.
 	stateChangeStack.pop();
 }
 
@@ -728,8 +781,10 @@ void GraphicsEngine::internalSetEngineParameter(StateVariable param, GraphicsEng
 	if (!isClaimed())
 		throw exception("Request to setEngineParameter while context not active");
 
+	//Get the type of the variable
 	VariableType varType = value.getType();
 
+	//Change the state of the variable requested
 	if (varType == VariableType::Bool)
 	{
 		if (param == StateVariable::DepthTest)
@@ -765,6 +820,7 @@ void GraphicsEngine::internalSetEngineParameter(StateVariable param, GraphicsEng
 	else
 		throw exception("setEngineParameter called with invalid value");
 
+	//Mark the current state of the variable
 	parameterStates[param] = value;
 }
 
@@ -774,71 +830,92 @@ void GraphicsEngine::setEngineParameter(StateVariable param, GraphicsEngineState
 	if (!isClaimed())
 		throw exception("Request to setEngineParameter while context not active");
 
+	//Push the variable state change onto the stack, if this isn't our initial variable set, this is an actual change, and the stateChangeStack isn't empty
 	if (parameterStates.count(param) == 1 && parameterStates[param] != value && !stateChangeStack.empty())
 		stateChangeStack.top().push(pair<StateVariable, GraphicsEngineStateVariable>(param, parameterStates[param]));
 
+	//Use internalSetEngineParameter to change the engine state if this is our first change, or it's different from the previous value
 	if (parameterStates.count(param) == 0 || (parameterStates.count(param) == 1 && parameterStates[param] != value))
 		internalSetEngineParameter(param, value);
 }
 
 void GraphicsEngine::useProgram(ShaderProgram& shaderProgram)
 {
+	//Use setEngineParameter to setup the program to be used.
 	setEngineParameter(StateVariable::ShaderProgram, GraphicsEngineStateVariable((GLint)shaderProgram.shaderProgram));
 }
 
 void GraphicsEngine::setModelToWorld(glm::dmat4 modelToWorld)
 {
+	//update our modelToWorld matrix, and the push the update to openGL
 	this->modelToWorld = modelToWorld;
 	updateModelToCamera();
 }
 
 void GraphicsEngine::setWorldToCamera(glm::dmat4 worldToCamera)
 {
+	//Update our worldToCamera and push the update to openGL
 	this->worldToCamera = worldToCamera;
 	updateModelToCamera();
 }
 
 void GraphicsEngine::setCameraToClip(glm::mat4 cameraToClip)
 {
+	//Update our cameraToClip and push the update to OpenGL
 	this->cameraToClip = cameraToClip;
 	updateCameraToClip();
 }
 
 void GraphicsEngine::updateModelToCamera()
 {
-	glm::mat4 newModelToCamera = glm::mat4(worldToCamera * modelToWorld);
+	//Calculate modelToCamera as combination of worldToCamera and modelToWorld
+	modelToCamera = glm::mat4(worldToCamera * modelToWorld);
 
+	//Push the new modelToCamera matrix to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(newModelToCamera[0][0]));
+	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(modelToCamera[0][0]));
 }
 
 void GraphicsEngine::updateCameraToClip()
 {
+	//Push updated cameraToClip matrix to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[1], 64, &(this->cameraToClip[0][0]));
 }
 
 void GraphicsEngine::swapBuffers()
 {
+	//... swap the bloody buffers. :)
 	SwapBuffers(deviceContext);
 }
 
 void GraphicsEngine::setAmbientLight(glm::vec3 ambientLight)
 {
+	//Update ambient light
 	this->ambientLight = ambientLight;
 
+	//Push ambient light update to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[0], 12, &this->ambientLight);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[1], 12, &this->ambientLight);
 }
 
 void GraphicsEngine::setSunlight(glm::vec3 color, glm::vec3 direction)
 {
+	//Update sunlight
 	this->sunColor = color;
 	this->sunDirection = glm::normalize(direction);
 
-	glm::vec3 invDirection = -this->sunDirection;
+	//Push sunlight to openGL
+	updateSunlight();
+}
 
+void GraphicsEngine::updateSunlight()
+{
+	//Get inverse direction of the sun, which is more useful from within the shaders
+	glm::vec4 invDirection = -(modelToCamera * glm::vec4(this->sunDirection, 0.0));
+
+	//Push sunColor and invDirection to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
-	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[1], 12, &this->sunColor);
-	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[2], 12, &invDirection);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[2], 12, &(this->sunColor[0]));
+	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[3], 12, &(invDirection[0]));
 }

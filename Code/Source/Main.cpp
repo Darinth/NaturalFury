@@ -8,7 +8,7 @@
 #include "CustomMemory.h"
 
 #include <memory>
-
+#include <future>
 #include <Windows.h>
 #include <string>
 using namespace std;
@@ -20,6 +20,8 @@ using namespace std;
 #include "MasterDirectoryResourceSource.h"
 #include "ResourceCache.h"
 #include "StringResourceProcessor.h"
+#include "PlayerView.h"
+#include "InterfaceThread.h"
 
 /*      Screen/display attributes*/
 int width = 800;
@@ -39,76 +41,38 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	int       nCmdShow)
 {	
 	MSG             msg;                    //message
-	bool    done;                   //flag for completion of app
 
+	//Initialize Logger
 	globalLogger = new Logger("LogInit.xml", "General.log");
 
+	//Initialize resource source
 	MasterDirectoryResourceSource *mdrs = new MasterDirectoryResourceSource(".");
-
 	mdrs->open();
 
+	//Initialize resourec cache using resource source
 	globalResourceCache = new ResourceCache(1024 * 1024 * 100, mdrs);
 	globalResourceCache->registerProcessor(shared_ptr<IResourceProcessor>(new StringResourceProcessor));
 
-	//Create GameEngnie
-	gameEngine = new GameEngine();
-	gameEngine->addView(shared_ptr<GameView>(new LocalPlayerView()));
+	//Open application window
+	Window *appWindow = new Window("Game Engine", "GameEngine", false, 800, 450, 32);
 
-	done = false;   //initialize loop condition variable
+	//Start thread to handle application UI, this thread actually handles the bulk of the application work.
+	InterfaceThread *interfaceThread = new InterfaceThread(appWindow);
 
-	//Set the next tick to happen immediately
-	clock_t nextTick = clock();
-
-	//variable to track number of ticks processed per game loop
-	char ticksThisLoop;
-
-	/*      Main program loop*/
+	/*      Main Message loop*/
 
 	//Until the application is done
-	while (!done)
+	while(GetMessage(&msg, NULL, NULL, NULL))
 	{
-		//process events from the eventPipeline
-		//Reset ticks this loop
-		ticksThisLoop = 0;
-		//While the clock is less than the time for the next tick and we've processed less than 30 ticks this game loop...
-		while (clock() > nextTick && ticksThisLoop < 30)
-		{
-			//Increase tick count
-			ticksThisLoop++;
-			//Process a tick every 16 miliseconds (about 60/second)
-			nextTick += 16;
-			//Proceses a tick
-			gameEngine->tick();
-			if (gameEngine->getGameState() == GameState::SHUT_DOWN)
-				PostQuitMessage(0);
-			this_thread::yield();
-		}
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 
-		//If we exited the tick loop due to having maxed out the tick counter, write a warning to the log.
-		if(ticksThisLoop >= 30)
-		{
-			globalLogger->eWriteLog("WARNING: Processor is having trouble keeping up with game rate.", LogLevel::Warning, {});
-		}
-
-		//While there are messages to be processed...
-		while(PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE) && !done)
-		{
-			//If the message is a quit message...
-			if (msg.message == WM_QUIT)     //did we receive a quit message?
-			{
-				//Set done to true and get out, nothing else needs to be done
-				done = true;
-			}
-			//Otherwise, pass the message to the message handler and get rid of it
-			else
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-		}
+		if (interfaceThread->done)
+			PostQuitMessage(0);
 	}
 
-	delete gameEngine;
+	delete interfaceThread;
+	delete appWindow;
 	delete globalLogger;
 	delete globalResourceCache;
 	delete mdrs;

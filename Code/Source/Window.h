@@ -17,7 +17,7 @@
 #include "Vec3.h"
 #include "KeyEnum.h"
 
-class PlayerView;
+class UserInterface;
 class GraphicsEngine;
 class CubeModel;
 class ShaderProgram;
@@ -26,42 +26,44 @@ class Scene;
 class Window
 {
 private:
-	//Hidden Data. Uses reinterpret_cast in Window.cpp to get access to actual data.
+	//Pimpl idiom to hide windows types from the rest of the application. Uses reinterpret_cast in Window.cpp to get access to actual data.
 	struct Pimpl;
 	Pimpl* pimpl;
-	PlayerView* playerView;
+	//UserInterface to send keystrokes, etc... to.
+	UserInterface* userInterface;
+	//Used by some OSes for window creation
 	string className;
+	//Whether the window was started in fullscreen mode.
 	bool fullScreen;
+	//Width/height of the window
 	int width, height;
+	//Color bit-depth
 	int bits;
+	//GraphicsEngine used by application to draw to this window
 	GraphicsEngine *graphicsEngine;
-	Window(const Window& window);
-	Window(Window&& window);
-	Window operator =(const Window& window);
+	//Disable copy construction
+	Window(const Window& window) = delete;
+	Window operator =(const Window& window) = delete;
+	//Key states, to prevent key repeats.
 	bool keyStates[(unsigned short)KeyEnum::TotalKeys];
 
-	//Debug variables.
-	glm::dvec3 debugCameraPosition;
-	double debugCameraTilt;
-	double debugCameraRotation;
-	ShaderProgram *shader;
-	shared_ptr<CubeModel> *cubeModel;
-	Scene *scene;
-	bool autoUpdate;
-
 public:
-	Window(string title, string className, bool fullScreen, int width, int height, int bits, PlayerView* playerView);
+	Window(string title, string className, bool fullScreen, int width, int height, int bits);
 	~Window();
-	void shiftDebugCamera(glm::dvec3 shift);
-	void rotateDebugCamera(double angle);
-	void tiltDebugCamera(double angle);
-	void updateScene();
-	void toggleAutoUpdate();
+	//Return the window's graphicsEngine
+	GraphicsEngine* getGraphicsEngine();
+
+	//Sets the user interface to send UI events to.
+	void setUserInterface(UserInterface* userInterface);
+	//Returns the user interface that UI events are being sent to.
+	UserInterface* getUserInterface();
 
 #ifdef _WINDOWS
+	//Used by MS windows OS to send messages to the window
 	virtual int handleMessage(void* windowHandle, unsigned int message, unsigned int wParam, long lParam);
 #endif
 
+	//Show the window.
 	void show();
 };
 

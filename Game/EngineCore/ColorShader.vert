@@ -13,16 +13,15 @@ out float specularOut;
 
 layout(shared) uniform MatrixBlock
 {
-  mat4 modelToCameraMatrix;
-  mat4 cameraToClipMatrix;
+	mat4 modelToCameraMatrix;
+	mat4 cameraToClipMatrix;
 } matrices;
 
 void main()
 {
 	gl_Position = matrices.cameraToClipMatrix * matrices.modelToCameraMatrix * vec4(position,1.0);
 	normalOut = normalize(normalIn);
+	colorOut = colorIn;
 	diffuseOut = diffuseIn;
 	specularOut = specularIn;
-
-	colorOut = colorIn;
 }

@@ -27,22 +27,26 @@ string StringResourceProcessor::getPattern()
 bool StringResourceProcessor::checkRawFile(shared_ptr<ResourceHandle> resourceHandle)
 {
 	return regex_match(resourceHandle->name, regex(pattern));
-	return true;
 }
 
 bool StringResourceProcessor::processResource(shared_ptr<ResourceHandle> resourceHandle)
 {
 	if (checkRawFile(resourceHandle))
 	{
+		//Get new resource space from resourceCache
 		char* temp = resourceHandle->resourceCache->allocate(resourceHandle->resourceSize + 1);
 
+		//Copy the data to the new location.
 		memcpy(temp, resourceHandle->resource, resourceHandle->resourceSize);
 
+		//Append string terminator
 		temp[resourceHandle->resourceSize] = '\0';
 
+		//Release old memory and inform resourceCache
 		delete resourceHandle->resource;
 		resourceHandle->resourceCache->memoryReleased(resourceHandle->resourceSize);
 
+		//Update pointer to resource and resourceSize
 		resourceHandle->resource = temp;
 		resourceHandle->resourceSize++;
 		return true;

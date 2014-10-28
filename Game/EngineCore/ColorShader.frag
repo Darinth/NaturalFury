@@ -15,16 +15,16 @@ struct DirectionalLight
 
 layout(shared) uniform MatrixBlock
 {
-  mat4 modelToCameraMatrix;
-  mat4 cameraToClipMatrix;
+	mat4 modelToCameraMatrix;
+	mat4 cameraToClipMatrix;
 } matrices;
 
 layout(shared) uniform LightBlock
 {
-  vec3 ambientLight;
+	vec3 eyeDirection;
+	vec3 ambientLight;
 	DirectionalLight sun;
 } lights;
-
 
 void main()
 {

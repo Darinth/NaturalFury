@@ -16,18 +16,22 @@ using namespace std;
 
 #include <glm\glm.hpp>
 
-class Model;
+#include "Model.h"
 
 class SceneNode : public ISceneNode
 {
 private:
 public:
+	//Default constructor and constructor the supply a model and modelToWorld matrix
 	SceneNode();
 	SceneNode(shared_ptr<Model> model, glm::dmat4 modelToWorld);
+	//model and modelToWorld matrix
 	glm::dmat4 modelToWorld;
 	shared_ptr<Model> model;
+	//Draw the model.
 	virtual void draw();
-	virtual bool castsShadows();
+	//Return if the model casts shadows.
+	virtual bool castsShadows() { return model->castsShadows(); }
 };
 
 #endif

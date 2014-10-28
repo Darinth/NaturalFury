@@ -31,7 +31,6 @@ public:
 	GameView();
 	virtual ~GameView();
 
-	virtual void sendMsg(const shared_ptr<EngineMsg>& msg) = 0;
 	virtual void process();
 };
 

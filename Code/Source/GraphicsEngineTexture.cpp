@@ -12,9 +12,11 @@
 
 #include "GraphicsEngine.h"
 
+//Store all of the parameters for destructor
 GraphicsEngineTexture::GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned int textureNum) : graphicsEngine(graphicsEngine), textureName(textureName), textureNum(textureNum) {}
 
 GraphicsEngineTexture::~GraphicsEngineTexture()
 {
+	//Tell the graphicsEngine to free the resources for this texture.
 	graphicsEngine->freeTextureFromArray(textureName, textureNum);
 }

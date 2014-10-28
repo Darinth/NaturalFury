@@ -16,39 +16,34 @@ using namespace std;
 
 class ResourceCache;
 
+//Enum to identify resource type for resources that use ExtraData
 enum class ResourceType : unsigned short
 {
 	Unknown = 0,
-	Texture,
 	ResourceTypeCount
 };
 
+//Interface class, just here to require that all extra data types define themselves.
 class IResourceExtraData
 {
 public:
 	virtual ResourceType getType() = 0;
 };
 
-class ExtraTextureData : IResourceExtraData
-{
-private:
-public:
-	const unsigned int width;
-	const unsigned int height;
-
-	ExtraTextureData(unsigned int width, unsigned int height) : width(width), height(height) {}
-	virtual ResourceType getType() { return ResourceType::Texture; }
-};
-
+//Carries raw data for a resource. ResourceCaches use this class to encapsulate data, and them keep the ResourceHandle alive for controlled periods to reduce the need for hard drive access.
 class ResourceHandle : Lockable
 {
 private:
 public:
 	ResourceHandle(string name, char* resource, unsigned int resourceSize, ResourceCache *resourceCache);
 	virtual ~ResourceHandle();
+	//Name of the resource
 	const string name;
+	//Resource cache that is tracking the resource size
 	ResourceCache * const resourceCache;
+	//The resource
 	char* resource;
+	//The size of the tracked resource.
 	unsigned int resourceSize;
 };
 

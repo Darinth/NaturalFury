@@ -27,10 +27,20 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	if (!graphicsEngine->isClaimed())
 		throw exception("Attempt to construct a ShaderProgram with unclaimed GraphicsEngine");
 
+	//Replace #PointLightCount# with 100 in vertex and fragment shader.
+	string vertexShaderSource = string(vertexShader->resource);
+	if (vertexShaderSource.find("#PointLightCount#") != string::npos)
+		vertexShaderSource.replace(vertexShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#")-1, "100");
+	
+	string fragmentShaderSource = string(fragmentShader->resource);
+	if (fragmentShaderSource.find("#PointLightCount#") != string::npos)
+		fragmentShaderSource.replace(fragmentShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#")-1, "100");
+
+
 	//Comile vertex shader
 	try
 	{
-		vertShader = glutil::CompileShader(GL_VERTEX_SHADER, vertexShader->resource);
+		vertShader = glutil::CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
 	}
 	catch (glutil::CompileLinkException e)
 	{
@@ -40,7 +50,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	//Compile fragment shader
 	try
 	{
-		fragShader = glutil::CompileShader(GL_FRAGMENT_SHADER, fragmentShader->resource);
+		fragShader = glutil::CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
 	}
 	catch (glutil::CompileLinkException e)
 	{
@@ -84,19 +94,30 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	//modelToCameraMatrixUniform = glGetUniformLocation(shaderProgram, "modelToCameraMatrix");
 	//cubeTextureUniform = glGetUniformLocation(shaderProgram, "cubeTexture");
 
+	//Use the program
+	glUseProgram(shaderProgram);
+
+	//Get the matrixBlock uniform and bind it to UBO 1
 	GLuint matrixBlockIndex = glGetUniformBlockIndex(shaderProgram, "MatrixBlock");
 	if (matrixBlockIndex != GL_INVALID_INDEX)
 	{
 		glUniformBlockBinding(shaderProgram, matrixBlockIndex, 1);
 	}
 
+	//Get the lightBlock uniform amd bind it to UBO 2
 	GLuint lightBlockIndex = glGetUniformBlockIndex(shaderProgram, "LightBlock");
 	if (lightBlockIndex != GL_INVALID_INDEX)
 	{
 		glUniformBlockBinding(shaderProgram, lightBlockIndex, 2);
 	}
 
-	glUseProgram(shaderProgram);
+	//Get the textureArray uniform and bind it to texture 0.
+	textureArrayUniform = glGetUniformLocation(shaderProgram, "textureArray");
+	if (textureArrayUniform)
+	{
+		glUniform1i(textureArrayUniform, 0);
+	}
+
 }
 
 ShaderProgram::~ShaderProgram()

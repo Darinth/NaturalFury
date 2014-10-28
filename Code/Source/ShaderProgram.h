@@ -21,11 +21,12 @@ private:
 	unsigned int shaderProgram;
 	unsigned int cameraToClipMatrixUniform;
 	unsigned int modelToCameraMatrixUniform;
-	unsigned int cubeTextureUniform;
+	unsigned int textureArrayUniform;
 	unsigned int vertShader;
 	unsigned int fragShader;
 
 public:
+	//Construct shaders with the given resources files.
 	ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<ResourceHandle> vertexShader, shared_ptr<ResourceHandle> fragmentShader);
 	~ShaderProgram();
 

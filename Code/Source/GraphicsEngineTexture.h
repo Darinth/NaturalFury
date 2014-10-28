@@ -14,14 +14,21 @@ using namespace std;
 
 class GraphicsEngine;
 
-class GraphicsEngineTexture
+class GraphicsEngineTexture final
 {
 	friend class GraphicsEngine;
 private:
+	//Name of the texture
 	const string textureName;
+	//Graphics engine it's loaded into
 	GraphicsEngine* graphicsEngine;
+	//GraphicsEngineTextures should never be copied
+	GraphicsEngineTexture(GraphicsEngineTexture&) = delete;
+	void operator=(GraphicsEngineTexture&) = delete;
+	//A GraphicsEngineTexture should only ever be created by a GraphicsEngine
 	GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned int textureNum);
 public:
+	//Number of the texture used by TexturedVertex
 	const unsigned int textureNum;
 	~GraphicsEngineTexture();
 };

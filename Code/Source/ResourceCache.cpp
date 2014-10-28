@@ -39,12 +39,8 @@ shared_ptr<ResourceHandle> ResourceCache::load(const string &resourceName)
 		//Iterate over the resource processors until they've all been checked or the resource was processed
 		while (it != resourceProcessors.end() && resourceProcessed == false)
 		{
-			//If the resource processor is for this file, process the file.
-			if ((*it)->checkRawFile(resourceHandle))
-			{
-				(*it)->processResource(resourceHandle);
-				resourceProcessed = true;
-			}
+			//Attempt to process the resource with this processor.
+			resourceProcessed = (*it)->processResource(resourceHandle);
 			//Move to the next resource processor
 			it++;
 		}

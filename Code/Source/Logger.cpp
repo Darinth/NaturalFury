@@ -23,6 +23,7 @@
 
 #include "ThreadSafeStream.h"
 
+//Just a thread-safe version of localtime
 void localtime_safe(time_t* t, tm& l)
 {
 	static mutex localtime_mutex;
@@ -68,7 +69,7 @@ string escapeFileName(const string& fileName)
 void writeLog(const string &file, const string &message, LogLevel logLevel, const char *funcName, const char* sourceFile, unsigned int lineNum)
 {
 	//Create the debug message
-	//Format is '[Level]YYYY-MM-DD HH:MM:SS "Message" sourceFile, functionname(line lineNumber)'
+	//Format is '[Level]YYYY-MM-DD HH:MM:SS sourceFile, functionname(line lineNumber)\nMessage'
 	stringstream debugMessage;
 	if (logLevel == LogLevel::Info)
 		debugMessage << "[Info]";
@@ -81,7 +82,8 @@ void writeLog(const string &file, const string &message, LogLevel logLevel, cons
 	localtime_safe(&t, now);
 	debugMessage << (now.tm_year + 1900) << '-' << (now.tm_mon + 1) << '-' << now.tm_mday << " ";
 	debugMessage << (now.tm_hour) << ":" << now.tm_min << ":" << now.tm_sec << " ";
-	debugMessage << "\"" << message << "\" " << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
+	debugMessage << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
+	debugMessage << message << endl;
 
 	fstream stream(file, ios_base::out);
 	stream << debugMessage.str();
@@ -145,7 +147,7 @@ Logger::Logger(string initializationFile, string generalLog) : generalStream(gen
 		{
 			stringstream logStream;
 			logStream << "Error in tag definition: \"" << name << "\"" << endl;
-			writeLog(logStream.str(), LogLevel::Warning, initializer_list<string>(), __FUNCTION__, __FILE__, __LINE__);
+			writeLog(logStream.str(), LogLevel::Warning, {}, __FUNCTION__, __FILE__, __LINE__);
 		}
 		//Move to the next Tag
 		currentTag = currentTag->NextSiblingElement("Tag");
@@ -163,7 +165,7 @@ Logger::~Logger()
 void Logger::writeLog(const string &message, LogLevel logLevel, const initializer_list<string> &tags, const char *funcName, const char* sourceFile, unsigned int lineNum)
 {
 	//Create the debug message
-	//Format is '[Level]YYYY-MM-DD HH:MM:SS "Message" sourceFile, functionname(line lineNumber)'
+	//Format is '[Level]YYYY-MM-DD HH:MM:SS sourceFile, functionname(line lineNumber)\nMessage'
 	stringstream debugMessage;
 	if (logLevel == LogLevel::Info)
 		debugMessage << "[Info]";
@@ -175,7 +177,8 @@ void Logger::writeLog(const string &message, LogLevel logLevel, const initialize
 	struct tm * now = localtime(&t);
 	debugMessage << (now->tm_year + 1900) << '-' << (now->tm_mon + 1) << '-' << now->tm_mday << " ";
 	debugMessage << (now->tm_hour) << ":" << now->tm_min << ":" << now->tm_sec << " ";
-	debugMessage << "\"" << message << "\" " << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
+	debugMessage << sourceFile << ", " << funcName << "(line " << lineNum << ")" << endl;
+	debugMessage << message << endl;
 
 	//If there are tags...
 	if (tags.size() > 0)

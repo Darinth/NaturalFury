@@ -14,9 +14,10 @@ class LightData;
 class ISceneNode
 {
 public:
+	//Draw the scene node
 	virtual void draw() = 0;
+	//Should this scene node cast shadows?
 	virtual bool castsShadows() = 0;
-	//virtual LightData getLightData();
 };
 
 #endif

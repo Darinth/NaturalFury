@@ -137,6 +137,7 @@
     <ClCompile Include="..\..\Source\GraphicsEngine.cpp" />
     <ClCompile Include="..\..\Source\GraphicsEngineState.cpp" />
     <ClCompile Include="..\..\Source\GraphicsEngineTexture.cpp" />
+    <ClCompile Include="..\..\Source\InterfaceThread.cpp" />
     <ClCompile Include="..\..\Source\lodepng.cpp" />
     <ClCompile Include="..\..\Source\Logger.cpp" />
     <ClCompile Include="..\..\Source\MasterDirectoryResourceSource.cpp" />
@@ -153,6 +154,7 @@
     <ClCompile Include="..\..\Source\SceneNode.cpp" />
     <ClCompile Include="..\..\Source\ShaderProgram.cpp" />
     <ClCompile Include="..\..\Source\StringResourceProcessor.cpp" />
+    <ClCompile Include="..\..\Source\UserInterface.cpp" />
     <ClCompile Include="..\..\Source\Window.cpp" />
     <ClCompile Include="..\..\Source\ZipResourceSource.cpp" />
   </ItemGroup>
@@ -164,11 +166,13 @@
     <ClInclude Include="..\..\Source\CustomMemory.h" />
     <ClInclude Include="..\..\Source\DirectoryResourceSource.h" />
     <ClInclude Include="..\..\Source\EngineMsg.h" />
+    <ClInclude Include="..\..\Source\Format.h" />
     <ClInclude Include="..\..\Source\Globals.h" />
     <ClInclude Include="..\..\Source\GraphicsEngine.h" />
     <ClInclude Include="..\..\Source\GraphicsEngineState.h" />
     <ClInclude Include="..\..\Source\GraphicsEngineStateVariable.h" />
     <ClInclude Include="..\..\Source\GraphicsEngineTexture.h" />
+    <ClInclude Include="..\..\Source\InterfaceThread.h" />
     <ClInclude Include="..\..\Source\IResourceProcessor.h" />
     <ClInclude Include="..\..\Source\IResourceSource.h" />
     <ClInclude Include="..\..\Source\ISceneNode.h" />
@@ -192,6 +196,7 @@
     <ClInclude Include="..\..\Source\StringResourceProcessor.h" />
     <ClInclude Include="..\..\Source\TexturedTriangle.h" />
     <ClInclude Include="..\..\Source\TexturedVertex.h" />
+    <ClInclude Include="..\..\Source\UserInterface.h" />
     <ClInclude Include="..\..\Source\Vec3.h" />
     <ClInclude Include="..\..\Source\ZipResourceSource.h" />
     <ClInclude Include="..\..\Source\ThreadSafeStream.h" />

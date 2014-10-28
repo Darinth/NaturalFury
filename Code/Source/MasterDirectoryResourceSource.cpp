@@ -22,6 +22,7 @@ using namespace std;
 #include "Logger.h"
 #include "DirectoryResourceSource.h"
 #include "ZipResourceSource.h"
+#include "Format.h"
 
 //Just store directory internally
 MasterDirectoryResourceSource::MasterDirectoryResourceSource(string directory) : directory(directory) {}
@@ -102,7 +103,7 @@ bool MasterDirectoryResourceSource::open()
 	//Something went wrong attempting to search the files in the directory.
 	else
 	{
-		globalLogger->eWriteLog("Invalid directory path " + directory, LogLevel::Warning, { "Resource" });
+		globalLogger->eWriteLog(formatToString("Invalid directory path \\{0}", directory), LogLevel::Warning, { "Resource" });
 	}
 
 	return true;
