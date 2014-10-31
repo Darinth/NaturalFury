@@ -73,9 +73,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	delete interfaceThread;
 	delete appWindow;
-	delete globalLogger;
 	delete globalResourceCache;
 	delete mdrs;
+	delete globalLogger;
 
 	string allocLog = getAllocs();
 

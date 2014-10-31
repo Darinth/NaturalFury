@@ -9,6 +9,7 @@
 
 #include "ShaderProgram.h"
 
+#include <sstream>
 #include <memory>
 using namespace std;
 
@@ -27,14 +28,23 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 	if (!graphicsEngine->isClaimed())
 		throw exception("Attempt to construct a ShaderProgram with unclaimed GraphicsEngine");
 
-	//Replace #PointLightCount# with 100 in vertex and fragment shader.
+	//Convert the point and spot light counts to text
+	string pointLightCountText = static_cast<stringstream&>(stringstream() << graphicsEngine->getPointLightCount()).str();
+	string spotLightCountText = static_cast<stringstream&>(stringstream() << graphicsEngine->getSpotLightCount()).str();
+
+	//Replace #PointLightCount# with the number of point lights and #SpotLightCount# with number of spot lights in vertex shader.
 	string vertexShaderSource = string(vertexShader->resource);
 	if (vertexShaderSource.find("#PointLightCount#") != string::npos)
-		vertexShaderSource.replace(vertexShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#")-1, "100");
-	
+		vertexShaderSource.replace(vertexShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#") - 1, pointLightCountText);
+	if (vertexShaderSource.find("#SpotLightCount#") != string::npos)
+		vertexShaderSource.replace(vertexShaderSource.find("#SpotLightCount#"), sizeof("#SpotLightCount#") - 1, spotLightCountText);
+
+	//Replace #PointLightCount# with the number of point lights and #SpotLightCount# with number of spot lights in fragment shader.
 	string fragmentShaderSource = string(fragmentShader->resource);
 	if (fragmentShaderSource.find("#PointLightCount#") != string::npos)
-		fragmentShaderSource.replace(fragmentShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#")-1, "100");
+		fragmentShaderSource.replace(fragmentShaderSource.find("#PointLightCount#"), sizeof("#PointLightCount#") - 1, pointLightCountText);
+	if (fragmentShaderSource.find("#SpotLightCount#") != string::npos)
+		fragmentShaderSource.replace(fragmentShaderSource.find("#SpotLightCount#"), sizeof("#SpotLightCount#") - 1, spotLightCountText);
 
 
 	//Comile vertex shader

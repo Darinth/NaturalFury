@@ -52,11 +52,46 @@ enum class StateVariable
 	ShaderProgram
 };
 
-struct PointLightLocationData
+//Holds offsets into the openGL UBO for point lights
+struct PointLightOffsetData
 {
-	unsigned int enabled;
-	unsigned int color;
-	unsigned int location;
+	int enabled;
+	int color;
+	int location;
+	int attenuation;
+};
+
+//Holds actual point light data
+struct PointLightData
+{
+	bool enabled;
+	glm::vec3 color;
+	glm::vec3 location;
+	glm::vec3 attenuation;
+};
+
+//Holds offsets into the openGL UBO for spot lights
+struct SpotLightOffsetData
+{
+	int enabled;
+	int color;
+	int location;
+	int attenuation;
+	int direction;
+	int fullDot;
+	int minDot;
+};
+
+//Holds actual spot light data
+struct SpotLightData
+{
+	bool enabled;
+	glm::vec3 color;
+	glm::vec3 location;
+	glm::vec3 attenuation;
+	glm::vec3 direction;
+	float fullDot;
+	float minDot;
 };
 
 class GraphicsEngine : public Lockable
@@ -138,8 +173,15 @@ private:
 	GLuint lightBlockBuffer;
 	GLint lightBlockUniformOffsets[4];
 
-	int pointLightCount;
-	PointLightLocationData *pointLightOffsets;
+	//Holds data for the engine's point lights
+	unsigned short pointLightCount;
+	PointLightOffsetData *pointLightOffsets;
+	PointLightData *pointLights;
+
+	//Holds data for the engine's spot lights
+	unsigned short spotLightCount;
+	SpotLightOffsetData *spotLightOffsets;
+	SpotLightData *spotLights;
 
 	//Sunlight information
 	glm::vec3 sunColor;
@@ -236,6 +278,16 @@ public:
 	//Sets lighting
 	void setAmbientLight(glm::vec3 ambientLight);
 	void setSunlight(glm::vec3 color, glm::vec3 direction);
+	unsigned short getPointLightCount();
+	void setPointLight(unsigned int number, bool enabled, glm::vec3 color, glm::vec3 location, glm::vec3 attenuation);
+	void setPointLight(unsigned int number, PointLightData data);
+	void enablePointLight(unsigned int number);
+	void disablePointLight(unsigned int number);
+	unsigned short getSpotLightCount();
+	void setSpotLight(unsigned int number, bool enabled, glm::vec3 color, glm::vec3 location, glm::vec3 attenuation, glm::vec3 direction, float fullDot, float minDot);
+	void setSpotLight(unsigned int number, SpotLightData data);
+	void enableSpotLight(unsigned int number);
+	void disableSpotLight(unsigned int number);
 };
 
 #endif

@@ -30,8 +30,6 @@ bool graphicsFunctionsLoaded = false;
 
 thread::id nullThread = thread::id();
 
-const int pointLightMaxCount = 1000;
-
 extern const TexturedTriangle cubeVertices[] =
 {
 	// Top
@@ -143,7 +141,8 @@ bool loadGraphicsFunctions()
 	return (LoadFunctions() != LS_LOAD_FAILED);
 }
 
-GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0), textureArray(0), textureArrayCount(0)
+GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0), textureArray(0), textureArrayCount(0),
+pointLightCount(100), spotLightCount(100)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -287,67 +286,166 @@ GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), f
 		uniforms << nameBuffer << endl;
 	}
 
-	//const int nameLen = strlen(uniformName) + 1;
-	//const GLchar name[nameLen];
-	//GLint uniformSize = 0;
-	//GLenum uniformType = GL_NONE;
-	//glGetActiveUniform(program, uniformIdx, nameLen, NULL,
-	//	&uniformSize, &uniformType, name);
-
-	//unsigned int pointLightCountUniform = glGetUniformLocation(shaderProgram, "numPointLights");
-	//int pointLightCount;
-	//glGetUniformiv(shaderProgram, pointLightCountUniform, &pointLightCount);
-
-	//const GLchar **pointLightUniformNames = new char*[pointLightCount];
-	//pointLightUniformNames[0] = new char[50];
-
-	//Get uniform names for all of the different point lights
+	//Initialize Point Lights
 	{
-		//ALL OF THIS POINT LIGHT CODE IS GOING TO BE REDONE
-		//Holds names of the point lights
+		//Initial values for the lights.
+		long initbool = 0;
+		glm::vec3 initVec3( 0.0f, 0.0f, 0.0f );
+
+		//Holds names of the point light uniforms
 		char pointLightEnabledName[50];
 		char pointLightColorName[50];
 		char pointLightLocationName[50];
-		//Workaround to deal with the fact that char** cannot be cast to const char**, copy the pointers after the data has been set.
-		const GLchar *pointLightUniformNames[3];
+		char pointLightAttenuationName[50];
+
+		//Workaround to deal with the fact that char** cannot be cast to const char**, copy the pointers to character arrays and then just change the character arrays.
+		const GLchar *pointLightUniformNames[4];
 		pointLightUniformNames[0] = pointLightEnabledName;
 		pointLightUniformNames[1] = pointLightColorName;
 		pointLightUniformNames[2] = pointLightLocationName;
+		pointLightUniformNames[3] = pointLightAttenuationName;
 
-		PointLightLocationData pointLightTemp[pointLightMaxCount];
+		//Temporary variable to hold the indices of the 4 light uniforms
+		unsigned int pointLightIndices[4];
 
-		pointLightCount = 0;
-		bool done = false;
-		do
+		//Make data space for the light block offsets and to hold the light properties
+		pointLightOffsets = new PointLightOffsetData[pointLightCount];
+		pointLights = new PointLightData[pointLightCount];
+
+		//Iterate through the lights...
+		for (int I = 0; I < pointLightCount;I++)
 		{
+			//Generate the names for all of the uniforms
 			stringstream enabledName;
-			enabledName << "LightBlock.pointLights[" << pointLightCount << "].enabled";
+			enabledName << "LightBlock.pointLights[" << I << "].enabled";
 			strcpy(pointLightEnabledName, enabledName.str().c_str());
 
 			stringstream colorName;
-			colorName << "LightBlock.pointLights[" << pointLightCount << "].color";
+			colorName << "LightBlock.pointLights[" << I << "].color";
 			strcpy(pointLightColorName, colorName.str().c_str());
 
 			stringstream locationName;
-			locationName << "LightBlock.pointLights[" << pointLightCount << "].location";
+			locationName << "LightBlock.pointLights[" << I << "].location";
 			strcpy(pointLightLocationName, locationName.str().c_str());
 
-			glGetUniformIndices(tempProgram.shaderProgram, 3, pointLightUniformNames, &pointLightTemp[pointLightCount].enabled);
+			stringstream attenuationName;
+			attenuationName << "LightBlock.pointLights[" << I << "].attenuation";
+			strcpy(pointLightAttenuationName, attenuationName.str().c_str());
 
-			if (pointLightTemp[pointLightCount].enabled == -1)
-			{
-				done = true;
-			}
-			else
-			{
-				pointLightCount++;
-			}
+			//Get the indices of all of the uniforms
+			glGetUniformIndices(tempProgram.shaderProgram, 4, pointLightUniformNames, pointLightIndices);
+
+			//Get the offsets of all of the uniforms
+			glGetActiveUniformsiv(tempProgram.shaderProgram, 4, pointLightIndices, GL_UNIFORM_OFFSET, &pointLightOffsets[I].enabled);
+
+			//Disable the light, all of the other properties are been initialized by the constructors
+			pointLights[I].enabled = false;
+
+			//Upload default properties to the lights in openGL
+			glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].enabled, 4, &initbool);
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].color, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].location, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].attenuation, 12, &initVec3[0]);
 		}
-		while (!done && pointLightCount < pointLightMaxCount);
-
-		pointLightOffsets = new PointLightLocationData[pointLightCount];
 	}
-	
+
+	//Initialize Spot Lights
+	{
+		//Initial values for the lights.
+		long initbool = 0;
+		glm::vec3 initVec3(0.0f, 0.0f, 0.0f);
+		float initFloat = 0.0;
+
+		//Holds names of the spot light uniforms
+		char spotLightEnabledName[50];
+		char spotLightColorName[50];
+		char spotLightLocationName[50];
+		char spotLightAttenuationName[50];
+		char spotLightDirectionName[50];
+		char spotLightFullDot[50];
+		char spotLightMinDot[50];
+
+		//Workaround to deal with the fact that char** cannot be cast to const char**, copy the pointers to character arrays and then just change the character arrays.
+		const GLchar *spotLightUniformNames[7];
+		spotLightUniformNames[0] = spotLightEnabledName;
+		spotLightUniformNames[1] = spotLightColorName;
+		spotLightUniformNames[2] = spotLightLocationName;
+		spotLightUniformNames[3] = spotLightAttenuationName;
+		spotLightUniformNames[4] = spotLightDirectionName;
+		spotLightUniformNames[5] = spotLightFullDot;
+		spotLightUniformNames[6] = spotLightMinDot;
+
+		//Temporary variable to hold the indices of the 7 light uniforms
+		unsigned int spotLightIndices[7];
+
+		//Make data space for the light block offsets and to hold the light properties
+		spotLightOffsets = new SpotLightOffsetData[pointLightCount];
+		spotLights = new SpotLightData[pointLightCount];
+
+		//Iterate through the lights...
+		for (int I = 0; I < pointLightCount; I++)
+		{
+			//Generate the names for all of the uniforms
+			stringstream enabledName;
+			enabledName << "LightBlock.spotLights[" << I << "].enabled";
+			strcpy(spotLightEnabledName, enabledName.str().c_str());
+
+			stringstream colorName;
+			colorName << "LightBlock.spotLights[" << I << "].color";
+			strcpy(spotLightColorName, colorName.str().c_str());
+
+			stringstream locationName;
+			locationName << "LightBlock.spotLights[" << I << "].location";
+			strcpy(spotLightLocationName, locationName.str().c_str());
+
+			stringstream attenuationName;
+			attenuationName << "LightBlock.spotLights[" << I << "].attenuation";
+			strcpy(spotLightAttenuationName, attenuationName.str().c_str());
+
+			stringstream directionName;
+			directionName << "LightBlock.spotLights[" << I << "].direction";
+			strcpy(spotLightDirectionName, directionName.str().c_str());
+
+			stringstream fullDotName;
+			fullDotName << "LightBlock.spotLights[" << I << "].fullDot";
+			strcpy(spotLightFullDot, fullDotName.str().c_str());
+
+			stringstream minDotName;
+			minDotName << "LightBlock.spotLights[" << I << "].minDot";
+			strcpy(spotLightMinDot, minDotName.str().c_str());
+
+			//Get the indices of all of the uniforms
+			glGetUniformIndices(tempProgram.shaderProgram, 7, spotLightUniformNames, spotLightIndices);
+
+			//Get the offsets of all of the uniforms
+			glGetActiveUniformsiv(tempProgram.shaderProgram, 7, spotLightIndices, GL_UNIFORM_OFFSET, &spotLightOffsets[I].enabled);
+
+			//Disable the light and set it's visibility to maximum, all of the other properties are been initialized by the constructors
+			spotLights[I].enabled = false;
+			spotLights[I].fullDot = 1.0f;
+			spotLights[I].minDot = -1.0f;
+
+			//Upload default properties to the lights in openGL
+			glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].enabled, 4, &initbool);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].color, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].location, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].attenuation, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].direction, 12, &initVec3[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].fullDot, 4, &initFloat);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].minDot, 4, &initFloat);
+		}
+	}
+
+	//Temporary code to create some lights
+	setPointLight(0, { true, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	setPointLight(1, { true, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	setPointLight(2, { true, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+
+	setSpotLight(0, { true, glm::vec3(1.0, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
+	setSpotLight(1, { true, glm::vec3(0.0, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
+	setSpotLight(2, { true, glm::vec3(0.0, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
 
 	doErrorCheck();
 
@@ -371,6 +469,10 @@ GraphicsEngine::~GraphicsEngine()
 	if (isClaimed())
 		globalLogger->eWriteLog("GraphicsEngine deconstructed while still owned.", LogLevel::Warning, { "Graphics" });
 
+	delete spotLights;
+	delete spotLightOffsets;
+
+	delete pointLights;
 	delete pointLightOffsets;
 
 	//Delete rendering context
@@ -874,6 +976,27 @@ void GraphicsEngine::updateModelToCamera()
 	//Push the new modelToCamera matrix to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(modelToCamera[0][0]));
+
+	//Update location of lights
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	for (int I = 0; I < pointLightCount; I++)
+	{
+		if (pointLights[I].enabled)
+		{
+			glm::vec4 transformedLocation = modelToCamera * glm::vec4(pointLights[I].location, 1.0);
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].location, 12, &transformedLocation[0]);
+		}
+	}
+	for (int I = 0; I < spotLightCount; I++)
+	{
+		if (spotLights[I].enabled)
+		{
+			glm::vec4 transformedLocation = modelToCamera * glm::vec4(spotLights[I].location, 1.0);
+			glm::vec4 transformedDirection = modelToCamera * glm::vec4(spotLights[I].direction, 0.0);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].location, 12, &transformedLocation[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].direction, 12, &transformedDirection[0]);
+		}
+	}
 }
 
 void GraphicsEngine::updateCameraToClip()
@@ -918,4 +1041,83 @@ void GraphicsEngine::updateSunlight()
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[2], 12, &(this->sunColor[0]));
 	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[3], 12, &(invDirection[0]));
+}
+
+unsigned short GraphicsEngine::getPointLightCount()
+{
+	return pointLightCount;
+}
+
+void GraphicsEngine::setPointLight(unsigned int number, bool enabled, glm::vec3 color, glm::vec3 location, glm::vec3 attenuation)
+{
+	setPointLight(number, { enabled, color, location, attenuation });
+}
+
+void GraphicsEngine::setPointLight(unsigned int number, PointLightData data)
+{
+	pointLights[number] = data;
+
+	glm::vec4 transformedLocation = modelToCamera * glm::vec4(data.location, 1.0);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].enabled, 4, &data.enabled);
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].color, 12, &data.color[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].location, 12, &transformedLocation[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].attenuation, 12, &data.attenuation[0]);
+}
+
+void GraphicsEngine::enablePointLight(unsigned int number)
+{
+	pointLights[number].enabled = true;
+
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].enabled, 4, &pointLights[number].enabled);
+}
+
+void GraphicsEngine::disablePointLight(unsigned int number)
+{
+	pointLights[number].enabled = false;
+
+	glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[number].enabled, 4, &pointLights[number].enabled);
+
+}
+
+unsigned short GraphicsEngine::getSpotLightCount()
+{
+	return spotLightCount;
+}
+
+void GraphicsEngine::setSpotLight(unsigned int number, bool enabled, glm::vec3 color, glm::vec3 location, glm::vec3 attenuation, glm::vec3 direction, float fullDot, float minDot)
+{
+	setSpotLight(number, { enabled, color, location, attenuation, direction, fullDot, minDot });
+}
+
+void GraphicsEngine::setSpotLight(unsigned int number, SpotLightData data)
+{
+	spotLights[number] = data;
+
+	glm::vec4 transformedLocation = modelToCamera * glm::vec4(data.location, 1.0);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].enabled, 4, &data.enabled);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].color, 12, &data.color[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].location, 12, &transformedLocation[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].attenuation, 12, &data.attenuation[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].direction, 12, &data.direction[0]);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].fullDot, 12, &data.fullDot);
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].minDot, 12, &data.minDot);
+}
+
+void GraphicsEngine::enableSpotLight(unsigned int number)
+{
+	spotLights[number].enabled = true;
+
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].enabled, 4, &spotLights[number].enabled);
+}
+
+void GraphicsEngine::disableSpotLight(unsigned int number)
+{
+	spotLights[number].enabled = false;
+
+	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].enabled, 4, &spotLights[number].enabled);
+
 }

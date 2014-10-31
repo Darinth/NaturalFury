@@ -8,7 +8,8 @@ layout(location = 4) in float diffuseIn;
 layout(location = 5) in float specularIn;
 
 //Outputs sent to fragment shader
-out vec3 normalFrag;
+out vec3 cameraPositionFrag;
+out vec3 cameraNormalFrag;
 out vec3 colorCoordFrag;
 out float diffuseFrag;
 out float specularFrag;
@@ -27,6 +28,18 @@ struct PointLight
 	bool enabled;
 	vec3 color;
 	vec3 location;
+	vec3 attenuation;
+};
+
+struct SpotLight
+{
+	bool enabled;
+	vec3 color;
+	vec3 location;
+	vec3 attenuation;
+	vec3 direction;
+	float fullDot;
+	float minDot;
 };
 
 //Matrices
@@ -37,6 +50,7 @@ layout(shared) uniform MatrixBlock
 } matrices;
 
 const int NUM_POINT_LIGHTS = #PointLightCount#;
+const int NUM_SPOT_LIGHTS = #SpotLightCount#;
 
 //Lights
 layout(shared) uniform LightBlock
@@ -45,6 +59,7 @@ layout(shared) uniform LightBlock
 	vec3 ambientLight;
 	DirectionalLight sun;
 	PointLight pointLights[NUM_POINT_LIGHTS];
+	SpotLight spotLights[NUM_SPOT_LIGHTS];
 } lights;
 
 void main()
@@ -52,13 +67,13 @@ void main()
 	//Calculate final point for vertex
 	gl_Position = matrices.cameraToClipMatrix * matrices.modelToCameraMatrix * vec4(position,1.0);
 
+	//Calculate point of coordinate in camera space. Once normalized, this can be used in the fragment shader to calculate the direction of the point.
+	cameraPositionFrag = (matrices.modelToCameraMatrix * vec4(position,1.0)).xyz;
 	//Calculate camera view normal
-	normalFrag = normalize(matrices.modelToCameraMatrix * vec4(normalIn, 0.0)).xyz;
+	cameraNormalFrag = normalize(matrices.modelToCameraMatrix * vec4(normalIn, 0.0)).xyz;
 	//Calculate texture coordinate
 	colorCoordFrag = vec3(texNum,texCoord);
 	//Pass diffuse and specular colors
 	diffuseFrag = diffuseIn;
 	specularFrag = specularIn;
-	//Calculate direction from eye to point, which also happens to be the point in coordinate in camera space
-	eyeDirecFrag = (matrices.modelToCameraMatrix * vec4(position,1.0)).xyz;
 }
