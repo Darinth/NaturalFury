@@ -228,9 +228,7 @@ Window::~Window()
 		ShowCursor(TRUE);
 	}
 
-	//Relinquish and delete graphics engine
-	graphicsEngine->relinquish();
-
+	//Delete graphics engine
 	delete graphicsEngine;
 
 	//Tell windows to destroy our window

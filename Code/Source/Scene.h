@@ -29,7 +29,8 @@ public:
 	Scene(GraphicsEngine *graphicsEngine);
 	Scene(Scene&) = delete;
 	void operator=(Scene&) = delete;
-	void draw();
+	void drawFull() const;
+	void drawShadows() const;
 	void addNode(shared_ptr<ISceneNode> sceneNode);
 	virtual bool castsShadows() { return true; }
 };

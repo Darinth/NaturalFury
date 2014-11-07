@@ -28,6 +28,7 @@ private:
 	unsigned int VAO;
 	//Point buffer
 	unsigned int buffer;
+	void draw(const glm::dmat4 &modelToWorld);
 public:
 	CubeModel(GraphicsEngine* graphicsEngine, const glm::vec3& halfExtents,
 		shared_ptr<GraphicsEngineTexture> topTexture, shared_ptr<GraphicsEngineTexture> northTexture, shared_ptr<GraphicsEngineTexture> eastTexture,
@@ -36,7 +37,8 @@ public:
 	void operator=(CubeModel&) = delete;
 	~CubeModel();
 	//Draw the model
-	void draw(glm::dmat4 modelToWorld);
+	void drawFull(glm::dmat4 modelToWorld);
+	void drawShadows(glm::dmat4 modelToWorld);
 	//Yes, cubes cast shadows.
 	virtual bool castsShadows() { return true; }
 };

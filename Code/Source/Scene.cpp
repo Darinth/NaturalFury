@@ -18,15 +18,27 @@ Scene::Scene(GraphicsEngine *graphicsEngine)
 
 }
 
-void Scene::draw()
+void Scene::drawFull() const
 {
 	//Will eventually hold light data
 	list<shared_ptr<ISceneNode>> lights;
 
 	//Draw each node in turn
-	for (vector<shared_ptr<ISceneNode>>::iterator it = nodes.begin(); it != nodes.end(); ++it)
+	for (vector<shared_ptr<ISceneNode>>::const_iterator it = nodes.begin(); it != nodes.end(); ++it)
 	{
-		(*it)->draw();
+		(*it)->drawFull();
+	}
+}
+
+void Scene::drawShadows() const
+{
+	//Will eventually hold light data
+	list<shared_ptr<ISceneNode>> lights;
+
+	//Draw each node in turn
+	for (vector<shared_ptr<ISceneNode>>::const_iterator it = nodes.begin(); it != nodes.end(); ++it)
+	{
+		(*it)->drawShadows();
 	}
 }
 

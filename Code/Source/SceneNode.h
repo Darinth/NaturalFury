@@ -29,7 +29,9 @@ public:
 	glm::dmat4 modelToWorld;
 	shared_ptr<Model> model;
 	//Draw the model.
-	virtual void draw();
+	virtual void drawFull() const;
+	//Draw elements of the model that cast shadows.
+	virtual void drawShadows() const;
 	//Return if the model casts shadows.
 	virtual bool castsShadows() { return model->castsShadows(); }
 };

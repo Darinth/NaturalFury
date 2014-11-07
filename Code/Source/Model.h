@@ -17,8 +17,8 @@ class Model
 private:
 
 public:
-	//Needs virtual destructor?
-	virtual void draw(dmat4 modelToWorld) = 0;
+	virtual void drawFull(dmat4 modelToWorld) = 0;
+	virtual void drawShadows(dmat4 modelToWorld) = 0;
 	virtual bool castsShadows() = 0;
 };
 

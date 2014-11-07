@@ -22,7 +22,7 @@
 #include "SceneNode.h"
 #include "GraphicsEngine.h"
 
-PlayerView::PlayerView() : gameWindow(nullptr), done(false), debugCameraRotation(0), debugCameraTilt(0), sunColor(1.0f, 1.0f, 1.0f), shiftDown(false), debugCameraPosition(0, 3, 0)
+PlayerView::PlayerView() : gameWindow(nullptr), done(false), debugCameraRotation(0), debugCameraTilt(0), sunColor(0.9f, 0.9f, 0.9f), shiftDown(false), debugCameraPosition(0, 3, 0)
 {
 }
 
@@ -135,27 +135,50 @@ void PlayerView::shiftDebugCamera(glm::dvec3 shift)
 void PlayerView::rotateDebugCamera(double angle)
 {
 	debugCameraRotation += angle;
+	if (debugCameraRotation > 180)
+		debugCameraRotation -= 360;
+	else if (debugCameraRotation < -180)
+		debugCameraRotation += 360;
 }
 
 void PlayerView::tiltDebugCamera(double angle)
 {
 	debugCameraTilt += angle;
+	if (debugCameraTilt > 90)
+		debugCameraTilt = 90;
+	else if (debugCameraTilt < -90)
+		debugCameraTilt = -90;
 }
 
 void PlayerView::updateScene(Scene* scene)
 {
 	//Generate WorldToCamera transform, send it to graphicsEngine, clear the screen, draw the scene, swap the buffer.
+
+	glm::dmat4 playerCameraTransform(1.0);
+	playerCameraTransform = glm::gtc::matrix_transform::rotate(playerCameraTransform, debugCameraTilt, glm::dvec3(1.0, 0.0, 0.0));
+	playerCameraTransform = glm::gtc::matrix_transform::rotate(playerCameraTransform, debugCameraRotation, glm::dvec3(0.0, -1.0, 0.0));
+	playerCameraTransform = glm::gtc::matrix_transform::translate(playerCameraTransform, glm::dvec3(-debugCameraPosition.x, -debugCameraPosition.y, -debugCameraPosition.z));
+
+	glm::dvec3 sunTarget(glm::inverse(playerCameraTransform) * glm::dvec4(0.0, 0.0, (graphicsEngine->getZFar() - graphicsEngine->getZNear()) / 2.0, 1.0));
+
+	glm::dmat4 sunCameraTransform(1.0);
+	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, glm::dvec3(0.0, 0.0, (graphicsEngine->getZFar() - graphicsEngine->getZNear()) / 2.0));
+	sunCameraTransform = glm::gtc::matrix_transform::rotate(sunCameraTransform, -90.0, glm::dvec3(1.0, 0.0, 0.0));
+	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, -sunTarget);
+
 	glm::dmat4 debugCameraTransform(1.0);
-	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraTilt, glm::dvec3(1.0, 0.0, 0.0));
-	debugCameraTransform = glm::gtc::matrix_transform::rotate(debugCameraTransform, debugCameraRotation, glm::dvec3(0.0, -1.0, 0.0));
-	debugCameraTransform = glm::gtc::matrix_transform::translate(debugCameraTransform, glm::dvec3(-debugCameraPosition.x, -debugCameraPosition.y, -debugCameraPosition.z));
+	debugCameraTransform = playerCameraTransform;//sunCameraTransform;//
+
 	graphicsEngine->setWorldToCamera(debugCameraTransform);
 
+	//graphicsEngine->setProjectionMode(ProjectionMode::Orthographic);
+	//graphicsEngine->setZFar(180.0f);
+
 	graphicsEngine->clearScreen();
-	scene->draw();
+	graphicsEngine->drawScene(scene);
+	//scene->drawFull();
 	graphicsEngine->swapBuffers();
 }
-
 
 void PlayerView::run(Window* gameWindow, GameEngine* gameEngine)
 {
@@ -166,12 +189,6 @@ void PlayerView::run(Window* gameWindow, GameEngine* gameEngine)
 
 	//Set the UI for the gameWindow to this.
 	gameWindow->setUserInterface(this);
-
-	//Create shader
-	shared_ptr<ResourceHandle> vertShader = globalResourceCache->gethandle("TextureShader.vert");
-	shared_ptr<ResourceHandle> fragShader = globalResourceCache->gethandle("TextureShader.frag");
-
-	ShaderProgram shader(graphicsEngine, vertShader, fragShader);
 
 	//Load textures
 	shared_ptr<GraphicsEngineTexture> stoneTexture = graphicsEngine->loadPNGToTextureArray("stone.png");
@@ -202,10 +219,20 @@ void PlayerView::run(Window* gameWindow, GameEngine* gameEngine)
 	modelToWorld = glm::gtc::matrix_transform::translate(glm::dmat4(1.0), glm::dvec3(-1.5, 1, 10));
 	scene.addNode(shared_ptr<SceneNode>(new SceneNode(cubeModel, modelToWorld)));
 
+	//Create some lights
+	graphicsEngine->setSunlight(sunColor, glm::vec3(-1.0, -1.0, -1.0));
+
+	//graphicsEngine->setPointLight(0, { true, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	//graphicsEngine->setPointLight(1, { true, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	//graphicsEngine->setPointLight(2, { true, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+
+	//graphicsEngine->setSpotLight(0, { true, glm::vec3(1.0, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
+	//graphicsEngine->setSpotLight(1, { true, glm::vec3(0.0, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
+	//graphicsEngine->setSpotLight(2, { true, glm::vec3(0.0, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
+
 	//Until we're done, just draw the scene repeatedly.
 	while (!done)
 	{
-		graphicsEngine->setSunlight(sunColor, glm::vec3(0.0, -1.0, 0.0));
 		updateScene(&scene);
 	}
 

@@ -14,6 +14,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "Globals.h"
 #include "GraphicsEngine.h"
 #include "Logger.h"
@@ -25,6 +27,7 @@
 #include "ResourceHandle.h"
 #include "ResourceCache.h"
 #include "Format.h"
+#include "Scene.h"
 
 bool graphicsFunctionsLoaded = false;
 
@@ -217,21 +220,26 @@ pointLightCount(100), spotLightCount(100)
 
 	doErrorCheck();
 
-	shared_ptr<ResourceHandle> vertShaderBase = globalResourceCache->gethandle("TextureShader.vert");
-	shared_ptr<ResourceHandle> fragShaderBase = globalResourceCache->gethandle("TextureShader.frag");
+	shared_ptr<ResourceHandle> mainVertShaderCode = globalResourceCache->gethandle("TextureShader.vert");
+	shared_ptr<ResourceHandle> mainFragShaderCode = globalResourceCache->gethandle("TextureShader.frag");
 
-	ShaderProgram tempProgram(this, vertShaderBase, fragShaderBase);
+	mainDrawShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, mainVertShaderCode, mainFragShaderCode));
+
+	shared_ptr<ResourceHandle> shadowMapVertShaderCode = globalResourceCache->gethandle("ShadowMapShader.vert");
+	shared_ptr<ResourceHandle> shadowMapFragShaderCode = globalResourceCache->gethandle("ShadowMapShader.frag");
+
+	shadowMapShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, shadowMapVertShaderCode, shadowMapFragShaderCode));
 
 	//Setup matrix block
-	GLuint matrixBlockIndex = glGetUniformBlockIndex(tempProgram.shaderProgram, "MatrixBlock");
+	GLuint matrixBlockIndex = glGetUniformBlockIndex(mainDrawShader->shaderProgram, "MatrixBlock");
 	GLint matrixBlockSize;
-	glGetActiveUniformBlockiv(tempProgram.shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
+	glGetActiveUniformBlockiv(mainDrawShader->shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
 	glGenBuffers(1, &matrixBlockBuffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferData(GL_UNIFORM_BUFFER, matrixBlockSize, NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, matrixBlockBuffer);
 
-	glUseProgram(tempProgram.shaderProgram);
+	glUseProgram(mainDrawShader->shaderProgram);
 	const GLchar *matrixBlockUniformNames[] =
 	{
 		"MatrixBlock.modelToCameraMatrix",
@@ -239,22 +247,22 @@ pointLightCount(100), spotLightCount(100)
 	};
 
 	GLuint matrixBlockUniformIndices[2];
-	glGetUniformIndices(tempProgram.shaderProgram, 2, matrixBlockUniformNames, matrixBlockUniformIndices);
+	glGetUniformIndices(mainDrawShader->shaderProgram, 2, matrixBlockUniformNames, matrixBlockUniformIndices);
 
-	glGetActiveUniformsiv(tempProgram.shaderProgram, 2, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
+	glGetActiveUniformsiv(mainDrawShader->shaderProgram, 2, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
 
 	doErrorCheck();
 
 	//Setup light block
-	GLuint lightBlockIndex = glGetUniformBlockIndex(tempProgram.shaderProgram, "LightBlock");
+	GLuint lightBlockIndex = glGetUniformBlockIndex(mainDrawShader->shaderProgram, "LightBlock");
 	GLint lightBlockSize;
-	glGetActiveUniformBlockiv(tempProgram.shaderProgram, lightBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &lightBlockSize);
+	glGetActiveUniformBlockiv(mainDrawShader->shaderProgram, lightBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &lightBlockSize);
 	glGenBuffers(1, &lightBlockBuffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
 	glBufferData(GL_UNIFORM_BUFFER, lightBlockSize, NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, lightBlockBuffer);
 
-	glUseProgram(tempProgram.shaderProgram);
+	glUseProgram(mainDrawShader->shaderProgram);
 	const GLchar *lightBlockUniformNames[] =
 	{
 		"LightBlock.eyeDirection",
@@ -264,9 +272,9 @@ pointLightCount(100), spotLightCount(100)
 	};
 
 	GLuint lightBlockUniformIndices[4];
-	glGetUniformIndices(tempProgram.shaderProgram, 4, lightBlockUniformNames, lightBlockUniformIndices);
+	glGetUniformIndices(mainDrawShader->shaderProgram, 4, lightBlockUniformNames, lightBlockUniformIndices);
 
-	glGetActiveUniformsiv(tempProgram.shaderProgram, 4, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
+	glGetActiveUniformsiv(mainDrawShader->shaderProgram, 4, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
 
 	glm::vec3 eyeDirection(0.0, 1.0, 0.0);
 
@@ -275,14 +283,14 @@ pointLightCount(100), spotLightCount(100)
 
 	//Debug code, useful to pull a list of all of the uniforms in the program.
 	int activeUniforms;
-	glGetProgramiv(tempProgram.shaderProgram, GL_ACTIVE_UNIFORMS, &activeUniforms);
+	glGetProgramiv(mainDrawShader->shaderProgram, GL_ACTIVE_UNIFORMS, &activeUniforms);
 
 	stringstream uniforms;
 	for (int I = 0; I < activeUniforms; I++)
 	{
 		int nameLength;
 		char nameBuffer[50];
-		glGetActiveUniformName(tempProgram.shaderProgram, I, 50, &nameLength, nameBuffer);
+		glGetActiveUniformName(mainDrawShader->shaderProgram, I, 50, &nameLength, nameBuffer);
 		uniforms << nameBuffer << endl;
 	}
 
@@ -333,10 +341,10 @@ pointLightCount(100), spotLightCount(100)
 			strcpy(pointLightAttenuationName, attenuationName.str().c_str());
 
 			//Get the indices of all of the uniforms
-			glGetUniformIndices(tempProgram.shaderProgram, 4, pointLightUniformNames, pointLightIndices);
+			glGetUniformIndices(mainDrawShader->shaderProgram, 4, pointLightUniformNames, pointLightIndices);
 
 			//Get the offsets of all of the uniforms
-			glGetActiveUniformsiv(tempProgram.shaderProgram, 4, pointLightIndices, GL_UNIFORM_OFFSET, &pointLightOffsets[I].enabled);
+			glGetActiveUniformsiv(mainDrawShader->shaderProgram, 4, pointLightIndices, GL_UNIFORM_OFFSET, &pointLightOffsets[I].enabled);
 
 			//Disable the light, all of the other properties are been initialized by the constructors
 			pointLights[I].enabled = false;
@@ -416,10 +424,10 @@ pointLightCount(100), spotLightCount(100)
 			strcpy(spotLightMinDot, minDotName.str().c_str());
 
 			//Get the indices of all of the uniforms
-			glGetUniformIndices(tempProgram.shaderProgram, 7, spotLightUniformNames, spotLightIndices);
+			glGetUniformIndices(mainDrawShader->shaderProgram, 7, spotLightUniformNames, spotLightIndices);
 
 			//Get the offsets of all of the uniforms
-			glGetActiveUniformsiv(tempProgram.shaderProgram, 7, spotLightIndices, GL_UNIFORM_OFFSET, &spotLightOffsets[I].enabled);
+			glGetActiveUniformsiv(mainDrawShader->shaderProgram, 7, spotLightIndices, GL_UNIFORM_OFFSET, &spotLightOffsets[I].enabled);
 
 			//Disable the light and set it's visibility to maximum, all of the other properties are been initialized by the constructors
 			spotLights[I].enabled = false;
@@ -438,15 +446,6 @@ pointLightCount(100), spotLightCount(100)
 		}
 	}
 
-	//Temporary code to create some lights
-	setPointLight(0, { true, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
-	setPointLight(1, { true, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
-	setPointLight(2, { true, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
-
-	setSpotLight(0, { true, glm::vec3(1.0, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
-	setSpotLight(1, { true, glm::vec3(0.0, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
-	setSpotLight(2, { true, glm::vec3(0.0, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
-
 	doErrorCheck();
 
 	//Update CameraToClip matrix
@@ -461,19 +460,26 @@ pointLightCount(100), spotLightCount(100)
 	setAmbientLight(glm::vec3(0.2, 0.2, 0.2));
 	//Set sunlight
 	setSunlight(glm::vec3(0.8, 0.8, 0.8), glm::vec3(0.0, -1.0, 0.0));
+
+	glGenFramebuffers(1, &sunFrameBuffer);
 }
 
 GraphicsEngine::~GraphicsEngine()
 {
 	//Log error if graphics engine deconstructed for some reason while still claimed, this shouldn't ever happen.
-	if (isClaimed())
-		globalLogger->eWriteLog("GraphicsEngine deconstructed while still owned.", LogLevel::Warning, { "Graphics" });
+	if (!isClaimed())
+		globalLogger->eWriteLog("GraphicsEngine deconstructed while not owned.", LogLevel::Warning, { "Graphics" });
 
 	delete spotLights;
 	delete spotLightOffsets;
 
 	delete pointLights;
 	delete pointLightOffsets;
+
+	mainDrawShader.reset();
+	shadowMapShader.reset();
+
+	relinquish();
 
 	//Delete rendering context
 	wglDeleteContext(renderingContext);
@@ -501,9 +507,50 @@ void GraphicsEngine::relinquish()
 	wglMakeCurrent(deviceContext, nullptr);
 }
 
+bool GraphicsEngine::isClaimed()
+{
+	return wglGetCurrentContext() == renderingContext;
+}
+
+void GraphicsEngine::setProjection(ProjectionMode projectionMode, float zNear, float zFar, float frustumScale, float screenRatio)
+{
+	setFrustumScale(frustumScale, false);
+	setScreenRatio(screenRatio, false);
+	setProjectionMode(projectionMode, true);
+}
+
+void GraphicsEngine::setProjectionMode(ProjectionMode projectionMode, bool updateCameraToClip)
+{
+	this->projectionMode = projectionMode;
+
+	if (updateCameraToClip)
+		this->updateCameraToClip();
+}
+
+ProjectionMode GraphicsEngine::getProjectionMode() const
+{
+	return this->projectionMode;
+}
+
+void GraphicsEngine::setZNear(float zNear, bool updateCameraToClip)
+{
+	this->zNear = zNear;
+
+	if (updateCameraToClip)
+		this->updateCameraToClip();
+}
+
 float GraphicsEngine::getZNear() const
 {
 	return this->zNear;
+}
+
+void GraphicsEngine::setZFar(float zFar, bool updateCameraToClip)
+{
+	this->zFar = zFar;
+
+	if (updateCameraToClip)
+		this->updateCameraToClip();
 }
 
 float GraphicsEngine::getZFar() const
@@ -511,19 +558,28 @@ float GraphicsEngine::getZFar() const
 	return this->zFar;
 }
 
+void GraphicsEngine::setFrustumScale(float frustumScalee, bool updateCameraToClip)
+{
+	this->frustumScale = frustumScale;
+	if (updateCameraToClip)
+		this->updateCameraToClip();
+}
+
 float GraphicsEngine::getFrustumScale() const
 {
 	return this->frustumScale;
 }
 
+void GraphicsEngine::setScreenRatio(float screenRatio, bool updateCameraToClip)
+{
+	this->screenRatio = screenRatio;
+	if (updateCameraToClip)
+		this->updateCameraToClip();
+}
+
 float GraphicsEngine::getScreenRatio() const
 {
 	return this->screenRatio;
-}
-
-bool GraphicsEngine::isClaimed()
-{
-	return wglGetCurrentContext() == renderingContext;
 }
 
 bool GraphicsEngine::doErrorCheck()
@@ -835,12 +891,10 @@ void GraphicsEngine::updateViewport()
 	glViewport(0, 0, viewportWidth, viewportHeight);
 	//Calculate new screen ratio
 	screenRatio = 1.0f*viewportHeight / viewportWidth;
-	//Calculate cameraToClip matrix
-	cameraToClip[0].x = frustumScale * screenRatio;
-	//Turn off viewport update needed
-	viewportUpdateNeeded = false;
-	//Update CameraToClip matrix
+	//Calculate & Update cameraToClip matrix
 	updateCameraToClip();
+
+	viewportUpdateNeeded = false;
 }
 
 void GraphicsEngine::pushEngineState()
@@ -959,13 +1013,7 @@ void GraphicsEngine::setWorldToCamera(glm::dmat4 worldToCamera)
 	//Update our worldToCamera and push the update to openGL
 	this->worldToCamera = worldToCamera;
 	updateModelToCamera();
-}
-
-void GraphicsEngine::setCameraToClip(glm::mat4 cameraToClip)
-{
-	//Update our cameraToClip and push the update to OpenGL
-	this->cameraToClip = cameraToClip;
-	updateCameraToClip();
+	updateLights();
 }
 
 void GraphicsEngine::updateModelToCamera()
@@ -976,31 +1024,32 @@ void GraphicsEngine::updateModelToCamera()
 	//Push the new modelToCamera matrix to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[0], 64, &(modelToCamera[0][0]));
-
-	//Update location of lights
-	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
-	for (int I = 0; I < pointLightCount; I++)
-	{
-		if (pointLights[I].enabled)
-		{
-			glm::vec4 transformedLocation = modelToCamera * glm::vec4(pointLights[I].location, 1.0);
-			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].location, 12, &transformedLocation[0]);
-		}
-	}
-	for (int I = 0; I < spotLightCount; I++)
-	{
-		if (spotLights[I].enabled)
-		{
-			glm::vec4 transformedLocation = modelToCamera * glm::vec4(spotLights[I].location, 1.0);
-			glm::vec4 transformedDirection = modelToCamera * glm::vec4(spotLights[I].direction, 0.0);
-			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].location, 12, &transformedLocation[0]);
-			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].direction, 12, &transformedDirection[0]);
-		}
-	}
 }
 
 void GraphicsEngine::updateCameraToClip()
 {
+	cameraToClip = glm::mat4(1.0);
+
+	if (projectionMode == ProjectionMode::Perspective)
+	{
+		//Create camera to clip matrix. Complex mathy stuffs.
+		cameraToClip[0].x = frustumScale * screenRatio;
+		cameraToClip[1].y = frustumScale;
+		cameraToClip[2].z = (zNear + zFar) / (zFar - zNear);
+		cameraToClip[3].z = 2 * zNear * zFar / (zNear - zFar);
+		cameraToClip[2].w = 1.0;
+		cameraToClip[3].w = 0.0;
+	}
+	else
+	{
+		cameraToClip[0][0] = 2 / (zFar - zNear) / frustumScale;
+		cameraToClip[1][1] = 2 / (zFar - zNear) / frustumScale * screenRatio;
+		cameraToClip[2][2] = 2 / (zFar - zNear);
+		cameraToClip[3][0] = 0.0f;
+		cameraToClip[3][1] = 0.0f;
+		cameraToClip[3][2] = -(zFar + zNear) / (zFar - zNear);
+	}
+
 	//Push updated cameraToClip matrix to openGL UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[1], 64, &(this->cameraToClip[0][0]));
@@ -1032,13 +1081,14 @@ void GraphicsEngine::setSunlight(glm::vec3 color, glm::vec3 direction)
 	updateSunlight();
 }
 
-void GraphicsEngine::updateSunlight()
+void GraphicsEngine::updateSunlight(bool bindBuffer)
 {
 	//Get inverse direction of the sun, which is more useful from within the shaders
-	glm::vec4 invDirection = -(modelToCamera * glm::vec4(this->sunDirection, 0.0));
+	glm::vec4 invDirection(-(worldToCamera * glm::dvec4(this->sunDirection, 0.0)));
 
 	//Push sunColor and invDirection to openGL UBO
-	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	if (bindBuffer)
+		glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
 	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[2], 12, &(this->sunColor[0]));
 	glBufferSubData(GL_UNIFORM_BUFFER, lightBlockUniformOffsets[3], 12, &(invDirection[0]));
 }
@@ -1081,6 +1131,20 @@ void GraphicsEngine::disablePointLight(unsigned int number)
 
 }
 
+void GraphicsEngine::updatePointLights(bool bindBuffer)
+{
+	if (bindBuffer)
+		glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	for (int I = 0; I < pointLightCount; I++)
+	{
+		if (pointLights[I].enabled)
+		{
+			glm::vec4 transformedLocation(worldToCamera * glm::dvec4(pointLights[I].location, 1.0));
+			glBufferSubData(GL_UNIFORM_BUFFER, pointLightOffsets[I].location, 12, &transformedLocation[0]);
+		}
+	}
+}
+
 unsigned short GraphicsEngine::getSpotLightCount()
 {
 	return spotLightCount;
@@ -1120,4 +1184,62 @@ void GraphicsEngine::disableSpotLight(unsigned int number)
 
 	glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[number].enabled, 4, &spotLights[number].enabled);
 
+}
+
+void GraphicsEngine::updateSpotLights(bool bindBuffer)
+{
+	if (bindBuffer)
+		glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
+	for (int I = 0; I < spotLightCount; I++)
+	{
+		if (spotLights[I].enabled)
+		{
+			glm::vec4 transformedLocation(worldToCamera * glm::dvec4(spotLights[I].location, 1.0));
+			glm::vec4 transformedDirection(worldToCamera * glm::dvec4(spotLights[I].direction, 0.0));
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].location, 12, &transformedLocation[0]);
+			glBufferSubData(GL_UNIFORM_BUFFER, spotLightOffsets[I].direction, 12, &transformedDirection[0]);
+		}
+	}
+}
+
+void GraphicsEngine::updateLights(bool bindBuffer)
+{
+	updateSunlight(bindBuffer);
+	updatePointLights(false);
+	updateSpotLights(false);
+}
+
+void GraphicsEngine::drawScene(const Scene *scene)
+{
+	glUseProgram(shadowMapShader->shaderProgram);
+	glm::dvec3 sunTarget(glm::inverse(worldToCamera) * glm::dvec4(0.0, 0.0, (zFar - zNear) / 2.0, 1.0));
+
+	glm::vec3 sunUp(0.0, 1.0, 0.0);
+
+	if ((sunUp - sunDirection).length() < 0.001)
+		glm::vec3 sunUp(glm::rotate(glm::mat4(1.0), 90.0f, glm::vec3(1.0, 0.0, 0.0)) * glm::vec4(-sunDirection, 1.0));
+	
+	glm::vec3 parallel(glm::normalize(glm::cross(-sunDirection, sunUp)));
+	sunUp = glm::cross(-sunDirection, parallel);
+
+	glm::dmat4 originalWorldToCamera = worldToCamera;
+	glm::dmat4 sunCameraRotation
+		(
+		parallel.x, -sunUp.x, sunDirection.x, 0,
+		parallel.y, -sunUp.y, sunDirection.y, 0,
+		parallel.z, -sunUp.z, sunDirection.z, 0,
+		0, 0, 0, 1
+		);
+
+	glm::dmat4 sunCameraTransform(1.0);
+	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, glm::dvec3(0.0, 0.0, (zFar - zNear) / 2.0));
+	sunCameraTransform = sunCameraTransform * sunCameraRotation;
+	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, -sunTarget);
+
+	setWorldToCamera(sunCameraTransform);
+	setProjectionMode(ProjectionMode::Orthographic);
+
+	scene->drawShadows();
+	//glUseProgram(mainDrawShader->shaderProgram);
+	//scene->drawFull();
 }

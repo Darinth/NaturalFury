@@ -21,8 +21,14 @@ SceneNode::SceneNode(shared_ptr<Model> model, glm::dmat4 modelToWorld) : model(m
 {
 }
 
-void SceneNode::draw()
+void SceneNode::drawFull() const
 {
 	//Draw the model using the matrix!
-	model->draw(modelToWorld);
+	model->drawFull(modelToWorld);
+}
+
+void SceneNode::drawShadows() const
+{
+	//Draw the model using the matrix!
+	model->drawShadows(modelToWorld);
 }

@@ -125,5 +125,5 @@ void main()
 	vec3 finalLighting = lights.ambientLight + diffuseSun + specularSun + diffusePoint + specularPoint + diffuseSpot + specularSpot;
 	
 	//Generate final color output as texture fragment multiplied by light components.
-	outputColor = texture2DArray(textureArray, colorCoordFrag.yzx) * vec4((finalLighting), 1.0);
+	outputColor = texture2DArray(textureArray, colorCoordFrag.yzx) * vec4((finalLighting), 1.0);//vec4(gl_FragCoord.zzz, 1.0);//
 }

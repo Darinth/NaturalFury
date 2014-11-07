@@ -15,7 +15,9 @@ class ISceneNode
 {
 public:
 	//Draw the scene node
-	virtual void draw() = 0;
+	virtual void drawFull() const = 0;
+	//Draw elements of the scene node that should cast shadows
+	virtual void drawShadows() const = 0;
 	//Should this scene node cast shadows?
 	virtual bool castsShadows() = 0;
 };

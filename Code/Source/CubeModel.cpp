@@ -27,8 +27,8 @@ CubeModel::CubeModel(GraphicsEngine *graphicsEngine, const glm::vec3& halfExtent
 		throw exception("Attempt to construct a CubeModel with unclaimed GraphicsEngine");
 
 	//Consts for different lighting components
-	const unsigned char diffuseComponent = 255;
-	const unsigned char specularComponent = 255;
+	const unsigned char diffuseComponent = 128;
+	const unsigned char specularComponent = 128;
 
 	//Vertices for the different parts of the cube
 	TexturedVertex cubeVertices[24] =
@@ -102,7 +102,7 @@ CubeModel::~CubeModel()
 	glDeleteBuffers(1, &buffer);
 }
 
-void CubeModel::draw(glm::dmat4 modelToWorld)
+void CubeModel::draw(const glm::dmat4 &modelToWorld)
 {
 	//Set the ModelToWorld translation
 	graphicsEngine->setModelToWorld(modelToWorld);
@@ -112,4 +112,14 @@ void CubeModel::draw(glm::dmat4 modelToWorld)
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, cubeBuffer);
 	//Check for errors in the openGL state
 	graphicsEngine->doErrorCheck();
+}
+
+void CubeModel::drawFull(glm::dmat4 modelToWorld)
+{
+	draw(modelToWorld);
+}
+
+void CubeModel::drawShadows(glm::dmat4 modelToWorld)
+{
+	draw(modelToWorld);
 }

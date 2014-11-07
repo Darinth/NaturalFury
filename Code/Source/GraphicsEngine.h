@@ -42,6 +42,8 @@ class ResourceHandle;
 class CubeModel;
 class GraphicsEngineTexture;
 
+class Scene;
+
 enum class StateVariable
 {
 	DepthTest,
@@ -50,6 +52,13 @@ enum class StateVariable
 	CullFaceMode,
 	FrontFace,
 	ShaderProgram
+};
+
+//Selects the ProjectionMode for cameraToClip matrix generation
+enum class ProjectionMode
+{
+	Orthographic,
+	Perspective
 };
 
 //Holds offsets into the openGL UBO for point lights
@@ -112,19 +121,23 @@ private:
 	stack<stack<pair<StateVariable, GraphicsEngineStateVariable>>> stateChangeStack;
 
 	//Variables for setting up camera to clip matrix
-	const float zNear; //Closest visible point
-	const float zFar;  //Furthest visible point
-	const float frustumScale;  //Increases/decreases zoom
+	ProjectionMode projectionMode = ProjectionMode::Perspective;
+	float zNear; //Closest visible point
+	float zFar;  //Furthest visible point
+	float frustumScale;  //Increases/decreases zoom
 	float screenRatio;   //Aspect ratio of viewport
 
 	//Matrix to convert coordinate from model to world.
 	glm::dmat4 modelToWorld;
+	glm::dmat4 inverseModelToWorld;
 
 	//Matrix to convert coordinates from world to camera. Multiplied with modelToWorld matrix and then convert to floats before being uploaded to openGL.
 	glm::dmat4 worldToCamera;
+	glm::dmat4 inverseWorldToCamera;
 
 	//Matrix to hold the composition of modelToWorld and worldToCamera.
 	glm::mat4 modelToCamera;
+	glm::mat4 inverseModelToCamera;
 
 	//VAO and Buffer for drawing plain old cylinder.
 	//Used as placeholder for stuff there is no model for yet.
@@ -133,6 +146,7 @@ private:
 
 	//Matrix for transformation from camera to clip space
 	glm::mat4 cameraToClip;
+	glm::mat4 inverseCameraToClip;
 
 	//Variables used when loading textures.
 	GLint maxTextureUnits;
@@ -155,6 +169,9 @@ private:
 	//Cube texture height and width
 	unsigned int textureArrayHeight;
 	unsigned int textureArrayWidth;
+
+	shared_ptr<ShaderProgram> mainDrawShader;
+	shared_ptr<ShaderProgram> shadowMapShader;
 
 	//Tracks loaded textures.
 	unordered_map<string, weak_ptr<GraphicsEngineTexture>> loadedTextures;
@@ -186,6 +203,7 @@ private:
 	//Sunlight information
 	glm::vec3 sunColor;
 	glm::vec3 sunDirection;
+	unsigned int sunFrameBuffer;
 
 	//openGL Texture to hold ASCII texture
 	GLuint ASCIItexture;
@@ -212,7 +230,10 @@ private:
 	void updateCameraToClip();
 	glm::vec3 ambientLight;
 
-	void updateSunlight();
+	void updateSunlight(bool bindBuffer = true);
+	void updatePointLights(bool bindBuffer = true);
+	void updateSpotLights(bool bindBuffer = true);
+	void updateLights(bool bindBuffer = true);
 
 public:
 	//Constructor. Takes a device context.
@@ -223,15 +244,21 @@ public:
 	void claim();
 	//Relinquish the claim on a context.
 	void relinquish();
-
-	//Getters for clip space variables
-	float getZNear() const;
-	float getZFar() const;
-	float getFrustumScale() const;
-	float getScreenRatio() const;
-
 	//Is the context claimed by the current thread?
 	bool isClaimed();
+
+	//Getters for clip space variables
+	void setProjection(ProjectionMode projectionMode, float zNear, float zFar, float frustumScale, float screenRatio);
+	void setProjectionMode(ProjectionMode projectionMode, bool updateCameraToClip = true);
+	ProjectionMode getProjectionMode() const;
+	void setZNear(float zNear, bool updateCameraToClip = true);
+	float getZNear() const;
+	void setZFar(float zFar, bool updateCameraToClip = true);
+	float getZFar() const;
+	void setFrustumScale(float frustumScale, bool updateCameraToClip = true);
+	float getFrustumScale() const;
+	void setScreenRatio(float screenRatio, bool updateCameraToClip = true);
+	float getScreenRatio() const;
 
 	//Runs an openGL error check and prints errors to the globalLogger.
 	bool doErrorCheck();
@@ -270,7 +297,8 @@ public:
 	//To engine matrices
 	void setModelToWorld(glm::dmat4 modelToWorld);
 	void setWorldToCamera(glm::dmat4 worldToCamera);
-	void setCameraToClip(glm::mat4 cameraToClip);
+
+	//void setCameraToClip(glm::mat4 cameraToClip);
 
 	//Swap front/back buffers
 	void swapBuffers();
@@ -288,6 +316,11 @@ public:
 	void setSpotLight(unsigned int number, SpotLightData data);
 	void enableSpotLight(unsigned int number);
 	void disableSpotLight(unsigned int number);
+
+	void setMainDrawShader(shared_ptr<ShaderProgram> shaderProgram);
+	void setShadowMapShader(shared_ptr<ShaderProgram> shaderProgram);
+
+	void drawScene(const Scene *scene);
 };
 
 #endif
