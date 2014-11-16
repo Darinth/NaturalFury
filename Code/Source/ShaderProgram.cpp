@@ -13,7 +13,7 @@
 #include <memory>
 using namespace std;
 
-#include <glload/gl_3_3.h>
+#include <glload/gl_4_2.hpp>
 #include <glload/gll.h>
 #include <glutil/glutil.h>
 #include <glm/glm.hpp>
@@ -98,36 +98,6 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 		globalLogger->eWriteLog(infoLog, LogLevel::Error, { "Graphics" });
 		delete[] infoLog;
 	}
-
-	//Get the uniform locations for the texture shaders
-	//cameraToClipMatrixUniform = glGetUniformLocation(shaderProgram, "cameraToClipMatrix");
-	//modelToCameraMatrixUniform = glGetUniformLocation(shaderProgram, "modelToCameraMatrix");
-	//cubeTextureUniform = glGetUniformLocation(shaderProgram, "cubeTexture");
-
-	//Use the program
-	glUseProgram(shaderProgram);
-
-	//Get the matrixBlock uniform and bind it to UBO 1
-	GLuint matrixBlockIndex = glGetUniformBlockIndex(shaderProgram, "MatrixBlock");
-	if (matrixBlockIndex != GL_INVALID_INDEX)
-	{
-		glUniformBlockBinding(shaderProgram, matrixBlockIndex, 1);
-	}
-
-	//Get the lightBlock uniform amd bind it to UBO 2
-	GLuint lightBlockIndex = glGetUniformBlockIndex(shaderProgram, "LightBlock");
-	if (lightBlockIndex != GL_INVALID_INDEX)
-	{
-		glUniformBlockBinding(shaderProgram, lightBlockIndex, 2);
-	}
-
-	//Get the textureArray uniform and bind it to texture 0.
-	textureArrayUniform = glGetUniformLocation(shaderProgram, "textureArray");
-	if (textureArrayUniform)
-	{
-		glUniform1i(textureArrayUniform, 0);
-	}
-
 }
 
 ShaderProgram::~ShaderProgram()

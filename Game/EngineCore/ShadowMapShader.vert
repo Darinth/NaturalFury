@@ -7,6 +7,7 @@ layout(shared) uniform MatrixBlock
 {
 	mat4 modelToCameraMatrix;
 	mat4 cameraToClipMatrix;
+	vec2 screenDimensions;
 } matrices;
 
 void main()

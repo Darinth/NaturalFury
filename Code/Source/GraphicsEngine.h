@@ -4,7 +4,7 @@
 // Header file for GraphicsEngine class.
 // Notes:
 // OS-Aware
-// Sets up OpenGL context and provides functions for accessing portions of it in a controller fashion.
+// Sets up OpenGL context and provides functions for accessing portions of it in a controlled fashion.
 
 #ifndef GRAPHICS_ENGINE_H
 #define GRAPHICS_ENGINE_H
@@ -19,7 +19,7 @@
 #include <queue>
 using namespace std;
 
-#include <glload/gl_3_3.h>
+#include <glload/gl_4_2.h>
 #include <glload/gll.h>
 #include <glutil/glutil.h>
 #include <glm/glm.hpp>
@@ -29,6 +29,7 @@ using namespace std;
 #include "TexturedTriangle.h"
 #include "Lockable.h"
 #include "GraphicsEngineStateVariable.h"
+#include "AmbientQuadModel.h"
 
 //Triangles used for a typical cube.
 extern const TexturedTriangle cubeVertices[];
@@ -170,8 +171,10 @@ private:
 	unsigned int textureArrayHeight;
 	unsigned int textureArrayWidth;
 
-	shared_ptr<ShaderProgram> mainDrawShader;
+	shared_ptr<ShaderProgram> geometryShader;
 	shared_ptr<ShaderProgram> shadowMapShader;
+	shared_ptr<ShaderProgram> ambientLightShader;
+	AmbientQuadModel *ambientQuadModel;
 
 	//Tracks loaded textures.
 	unordered_map<string, weak_ptr<GraphicsEngineTexture>> loadedTextures;
@@ -184,11 +187,20 @@ private:
 
 	//Variables to deal with matrix block.
 	GLuint matrixBlockBuffer;
-	GLint matrixBlockUniformOffsets[2];
+	GLint matrixBlockUniformOffsets[3];
 
 	//Variables to deal with light block.
 	GLuint lightBlockBuffer;
 	GLint lightBlockUniformOffsets[4];
+
+	//Geomtry buffer variables. Used 
+	unsigned int geometryBuffer;
+	unsigned int cameraPositionTexture;
+	unsigned int cameraNormalTexture;
+	unsigned int colorTexture;
+	unsigned int diffuseTexture;
+	unsigned int specularTexture;
+	unsigned int depthTexture;
 
 	//Holds data for the engine's point lights
 	unsigned short pointLightCount;
@@ -204,6 +216,7 @@ private:
 	glm::vec3 sunColor;
 	glm::vec3 sunDirection;
 	unsigned int sunFrameBuffer;
+	unsigned int sunShadowmapTexture;
 
 	//openGL Texture to hold ASCII texture
 	GLuint ASCIItexture;
@@ -234,6 +247,7 @@ private:
 	void updatePointLights(bool bindBuffer = true);
 	void updateSpotLights(bool bindBuffer = true);
 	void updateLights(bool bindBuffer = true);
+	void generateGBuffer();
 
 public:
 	//Constructor. Takes a device context.

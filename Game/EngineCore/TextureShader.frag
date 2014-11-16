@@ -1,5 +1,4 @@
-#version 330
-#extension GL_EXT_texture_array: enable
+#version 420
 
 //Inputs from vertex shader
 in vec3 cameraPositionFrag;
@@ -7,9 +6,6 @@ in vec3 cameraNormalFrag;
 in vec3 colorCoordFrag;
 in float diffuseFrag;
 in float specularFrag;
-
-//Texture array for drawing
-uniform sampler2DArray textureArray;
 
 //Output color
 out vec4 outputColor;
@@ -19,6 +15,7 @@ struct DirectionalLight
 {
 	vec3 color;
 	vec3 invDirection;
+	mat4 toLightClip;
 };
 
 //Struct for point lights
@@ -42,17 +39,18 @@ struct SpotLight
 };
 
 //Matrices
-layout(shared) uniform MatrixBlock
+layout(shared, binding = 1) uniform MatrixBlock
 {
 	mat4 modelToCameraMatrix;
 	mat4 cameraToClipMatrix;
+	vec2 screenDimensions;
 } matrices;
 
 const int NUM_POINT_LIGHTS = #PointLightCount#;
 const int NUM_SPOT_LIGHTS = #SpotLightCount#;
 
 //Lights
-layout(shared) uniform LightBlock
+layout(shared, binding = 2) uniform LightBlock
 {
 	vec3 eyeDirection;
 	vec3 ambientLight;
@@ -125,5 +123,5 @@ void main()
 	vec3 finalLighting = lights.ambientLight + diffuseSun + specularSun + diffusePoint + specularPoint + diffuseSpot + specularSpot;
 	
 	//Generate final color output as texture fragment multiplied by light components.
-	outputColor = texture2DArray(textureArray, colorCoordFrag.yzx) * vec4((finalLighting), 1.0);//vec4(gl_FragCoord.zzz, 1.0);//
+	outputColor = texture(textureArray, colorCoordFrag.yzx) * vec4((finalLighting), 1.0);
 }

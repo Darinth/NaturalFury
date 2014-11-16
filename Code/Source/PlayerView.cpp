@@ -221,10 +221,11 @@ void PlayerView::run(Window* gameWindow, GameEngine* gameEngine)
 
 	//Create some lights
 	graphicsEngine->setSunlight(sunColor, glm::vec3(-1.0, -1.0, -1.0));
+	//graphicsEngine->setAmbientLight(glm::vec3(1.0f, 1.0f, 1.0f));
 
-	//graphicsEngine->setPointLight(0, { true, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
-	//graphicsEngine->setPointLight(1, { true, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
-	//graphicsEngine->setPointLight(2, { true, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	graphicsEngine->setPointLight(0, { true, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	graphicsEngine->setPointLight(1, { true, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
+	graphicsEngine->setPointLight(2, { true, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-5.0f, 2.0f, 10.0f), glm::vec3(1.0f, 0.1f, 0.1f) });
 
 	//graphicsEngine->setSpotLight(0, { true, glm::vec3(1.0, 0.0f, 0.0f), glm::vec3(5.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });
 	//graphicsEngine->setSpotLight(1, { true, glm::vec3(0.0, 1.0f, 0.0f), glm::vec3(0.0f, 2.0f, -10.0f), glm::vec3(1.0f, 0.1f, 0.1f), glm::vec3(0.0f, 1.0f, 0.0f), 1.0, 0.8 });

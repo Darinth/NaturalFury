@@ -129,6 +129,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Source\AllocMap.cpp" />
+    <ClCompile Include="..\..\Source\AmbientQuadModel.cpp" />
     <ClCompile Include="..\..\Source\CubeModel.cpp" />
     <ClCompile Include="..\..\Source\CustomMemory.cpp" />
     <ClCompile Include="..\..\Source\DirectoryResourceSource.cpp" />
@@ -153,6 +154,7 @@
     <ClCompile Include="..\..\Source\Scene.cpp" />
     <ClCompile Include="..\..\Source\SceneNode.cpp" />
     <ClCompile Include="..\..\Source\ShaderProgram.cpp" />
+    <ClCompile Include="..\..\Source\SphereModel.cpp" />
     <ClCompile Include="..\..\Source\StringResourceProcessor.cpp" />
     <ClCompile Include="..\..\Source\UserInterface.cpp" />
     <ClCompile Include="..\..\Source\Window.cpp" />
@@ -160,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\AllocMap.h" />
+    <ClInclude Include="..\..\Source\AmbientQuadModel.h" />
     <ClInclude Include="..\..\Source\ColoredTriangle.h" />
     <ClInclude Include="..\..\Source\ColoredVertex.h" />
     <ClInclude Include="..\..\Source\CubeModel.h" />
@@ -193,6 +196,7 @@
     <ClInclude Include="..\..\Source\Scene.h" />
     <ClInclude Include="..\..\Source\SceneNode.h" />
     <ClInclude Include="..\..\Source\ShaderProgram.h" />
+    <ClInclude Include="..\..\Source\SphereModel.h" />
     <ClInclude Include="..\..\Source\StringResourceProcessor.h" />
     <ClInclude Include="..\..\Source\TexturedTriangle.h" />
     <ClInclude Include="..\..\Source\TexturedVertex.h" />

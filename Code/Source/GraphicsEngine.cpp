@@ -145,7 +145,8 @@ bool loadGraphicsFunctions()
 }
 
 GraphicsEngine::GraphicsEngine(HDC deviceContext) :zNear(0.05f), zFar(120.0f), frustumScale(1.0f), screenRatio(1.0), modelToWorld(1.0), worldToCamera(1.0), textureArray(0), textureArrayCount(0),
-pointLightCount(100), spotLightCount(100)
+pointLightCount(100), spotLightCount(100),
+geometryBuffer(-1), cameraPositionTexture(-1), cameraNormalTexture(-1), colorTexture(-1), diffuseTexture(-1), specularTexture(-1)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 
@@ -219,50 +220,46 @@ pointLightCount(100), spotLightCount(100)
 	//Upload camera to clip matrix
 
 	doErrorCheck();
+	ShaderProgram uboSetupShader(this, globalResourceCache->gethandle("UBOSetup.vert"), globalResourceCache->gethandle("UBOSetup.frag"));
 
-	shared_ptr<ResourceHandle> mainVertShaderCode = globalResourceCache->gethandle("TextureShader.vert");
-	shared_ptr<ResourceHandle> mainFragShaderCode = globalResourceCache->gethandle("TextureShader.frag");
-
-	mainDrawShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, mainVertShaderCode, mainFragShaderCode));
-
-	shared_ptr<ResourceHandle> shadowMapVertShaderCode = globalResourceCache->gethandle("ShadowMapShader.vert");
-	shared_ptr<ResourceHandle> shadowMapFragShaderCode = globalResourceCache->gethandle("ShadowMapShader.frag");
-
-	shadowMapShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, shadowMapVertShaderCode, shadowMapFragShaderCode));
+	geometryShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, globalResourceCache->gethandle("GeometryShader.vert"), globalResourceCache->gethandle("GeometryShader.frag")));
+	shadowMapShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, globalResourceCache->gethandle("ShadowMapShader.vert"), globalResourceCache->gethandle("ShadowMapShader.frag")));
+	ambientLightShader = shared_ptr<ShaderProgram>(new ShaderProgram(this, globalResourceCache->gethandle("AmbientRenderer.vert"), globalResourceCache->gethandle("AmbientRenderer.frag")));
 
 	//Setup matrix block
-	GLuint matrixBlockIndex = glGetUniformBlockIndex(mainDrawShader->shaderProgram, "MatrixBlock");
+	GLuint matrixBlockIndex = glGetUniformBlockIndex(uboSetupShader.shaderProgram, "MatrixBlock");
 	GLint matrixBlockSize;
-	glGetActiveUniformBlockiv(mainDrawShader->shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
+	glGetActiveUniformBlockiv(uboSetupShader.shaderProgram, matrixBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &matrixBlockSize);
 	glGenBuffers(1, &matrixBlockBuffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
 	glBufferData(GL_UNIFORM_BUFFER, matrixBlockSize, NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, matrixBlockBuffer);
 
-	glUseProgram(mainDrawShader->shaderProgram);
+	glUseProgram(uboSetupShader.shaderProgram);
 	const GLchar *matrixBlockUniformNames[] =
 	{
 		"MatrixBlock.modelToCameraMatrix",
-		"MatrixBlock.cameraToClipMatrix"
+		"MatrixBlock.cameraToClipMatrix",
+		"MatrixBlock.screenDimensions"
 	};
 
-	GLuint matrixBlockUniformIndices[2];
-	glGetUniformIndices(mainDrawShader->shaderProgram, 2, matrixBlockUniformNames, matrixBlockUniformIndices);
+	GLuint matrixBlockUniformIndices[3];
+	glGetUniformIndices(uboSetupShader.shaderProgram, 3, matrixBlockUniformNames, matrixBlockUniformIndices);
 
-	glGetActiveUniformsiv(mainDrawShader->shaderProgram, 2, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
+	glGetActiveUniformsiv(uboSetupShader.shaderProgram, 3, matrixBlockUniformIndices, GL_UNIFORM_OFFSET, matrixBlockUniformOffsets);
 
 	doErrorCheck();
 
 	//Setup light block
-	GLuint lightBlockIndex = glGetUniformBlockIndex(mainDrawShader->shaderProgram, "LightBlock");
+	GLuint lightBlockIndex = glGetUniformBlockIndex(uboSetupShader.shaderProgram, "LightBlock");
 	GLint lightBlockSize;
-	glGetActiveUniformBlockiv(mainDrawShader->shaderProgram, lightBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &lightBlockSize);
+	glGetActiveUniformBlockiv(uboSetupShader.shaderProgram, lightBlockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &lightBlockSize);
 	glGenBuffers(1, &lightBlockBuffer);
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBlockBuffer);
 	glBufferData(GL_UNIFORM_BUFFER, lightBlockSize, NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, lightBlockBuffer);
 
-	glUseProgram(mainDrawShader->shaderProgram);
+	glUseProgram(uboSetupShader.shaderProgram);
 	const GLchar *lightBlockUniformNames[] =
 	{
 		"LightBlock.eyeDirection",
@@ -272,9 +269,9 @@ pointLightCount(100), spotLightCount(100)
 	};
 
 	GLuint lightBlockUniformIndices[4];
-	glGetUniformIndices(mainDrawShader->shaderProgram, 4, lightBlockUniformNames, lightBlockUniformIndices);
+	glGetUniformIndices(uboSetupShader.shaderProgram, 4, lightBlockUniformNames, lightBlockUniformIndices);
 
-	glGetActiveUniformsiv(mainDrawShader->shaderProgram, 4, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
+	glGetActiveUniformsiv(uboSetupShader.shaderProgram, 4, lightBlockUniformIndices, GL_UNIFORM_OFFSET, lightBlockUniformOffsets);
 
 	glm::vec3 eyeDirection(0.0, 1.0, 0.0);
 
@@ -283,14 +280,14 @@ pointLightCount(100), spotLightCount(100)
 
 	//Debug code, useful to pull a list of all of the uniforms in the program.
 	int activeUniforms;
-	glGetProgramiv(mainDrawShader->shaderProgram, GL_ACTIVE_UNIFORMS, &activeUniforms);
+	glGetProgramiv(uboSetupShader.shaderProgram, GL_ACTIVE_UNIFORMS, &activeUniforms);
 
 	stringstream uniforms;
 	for (int I = 0; I < activeUniforms; I++)
 	{
 		int nameLength;
 		char nameBuffer[50];
-		glGetActiveUniformName(mainDrawShader->shaderProgram, I, 50, &nameLength, nameBuffer);
+		glGetActiveUniformName(uboSetupShader.shaderProgram, I, 50, &nameLength, nameBuffer);
 		uniforms << nameBuffer << endl;
 	}
 
@@ -341,10 +338,10 @@ pointLightCount(100), spotLightCount(100)
 			strcpy(pointLightAttenuationName, attenuationName.str().c_str());
 
 			//Get the indices of all of the uniforms
-			glGetUniformIndices(mainDrawShader->shaderProgram, 4, pointLightUniformNames, pointLightIndices);
+			glGetUniformIndices(uboSetupShader.shaderProgram, 4, pointLightUniformNames, pointLightIndices);
 
 			//Get the offsets of all of the uniforms
-			glGetActiveUniformsiv(mainDrawShader->shaderProgram, 4, pointLightIndices, GL_UNIFORM_OFFSET, &pointLightOffsets[I].enabled);
+			glGetActiveUniformsiv(uboSetupShader.shaderProgram, 4, pointLightIndices, GL_UNIFORM_OFFSET, &pointLightOffsets[I].enabled);
 
 			//Disable the light, all of the other properties are been initialized by the constructors
 			pointLights[I].enabled = false;
@@ -424,10 +421,10 @@ pointLightCount(100), spotLightCount(100)
 			strcpy(spotLightMinDot, minDotName.str().c_str());
 
 			//Get the indices of all of the uniforms
-			glGetUniformIndices(mainDrawShader->shaderProgram, 7, spotLightUniformNames, spotLightIndices);
+			glGetUniformIndices(uboSetupShader.shaderProgram, 7, spotLightUniformNames, spotLightIndices);
 
 			//Get the offsets of all of the uniforms
-			glGetActiveUniformsiv(mainDrawShader->shaderProgram, 7, spotLightIndices, GL_UNIFORM_OFFSET, &spotLightOffsets[I].enabled);
+			glGetActiveUniformsiv(uboSetupShader.shaderProgram, 7, spotLightIndices, GL_UNIFORM_OFFSET, &spotLightOffsets[I].enabled);
 
 			//Disable the light and set it's visibility to maximum, all of the other properties are been initialized by the constructors
 			spotLights[I].enabled = false;
@@ -461,7 +458,38 @@ pointLightCount(100), spotLightCount(100)
 	//Set sunlight
 	setSunlight(glm::vec3(0.8, 0.8, 0.8), glm::vec3(0.0, -1.0, 0.0));
 
+	//Generate depth texture for sun
+	//32 bit depth texture, 256x256
+	glGenTextures(1, &sunShadowmapTexture);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, sunShadowmapTexture);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	//NULL means reserve texture memory, but texels are undefined
+	//You can also try GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT24 for the internal format.
+	//If GL_DEPTH24_STENCIL8_EXT, go ahead and use it (GL_EXT_packed_depth_stencil)
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT16, 256, 256, 1 + pointLightCount + spotLightCount, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+
 	glGenFramebuffers(1, &sunFrameBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sunFrameBuffer);
+	//glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sunShadowmapTexture, 0);
+	glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sunShadowmapTexture, 0, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	GLenum status;
+	status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		globalLogger->eWriteLog(formatToString("Framebuffer incomplete, status: {0}", status), LogLevel::Error, { "Graphics" });
+	}
+	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
+	glDrawBuffer(GL_BACK);
+	glReadBuffer(GL_BACK);
+
+	ambientQuadModel = new AmbientQuadModel(this);
 }
 
 GraphicsEngine::~GraphicsEngine()
@@ -470,14 +498,17 @@ GraphicsEngine::~GraphicsEngine()
 	if (!isClaimed())
 		globalLogger->eWriteLog("GraphicsEngine deconstructed while not owned.", LogLevel::Warning, { "Graphics" });
 
+	delete ambientQuadModel;
+
 	delete spotLights;
 	delete spotLightOffsets;
 
 	delete pointLights;
 	delete pointLightOffsets;
 
-	mainDrawShader.reset();
+	geometryShader.reset();
 	shadowMapShader.reset();
+	ambientLightShader.reset();
 
 	relinquish();
 
@@ -872,9 +903,78 @@ void GraphicsEngine::setViewport(int sizeX, int sizeY)
 {
 	lock_guard<recursive_mutex> lock(objectMutex);
 	//Determine that the viewport needs updating and store the values that it needs to be updated to
-	viewportUpdateNeeded = true;
 	viewportWidth = sizeX;
 	viewportHeight = sizeY;
+	viewportUpdateNeeded = true;
+}
+
+void GraphicsEngine::generateGBuffer()
+{
+	if (cameraPositionTexture != -1) glDeleteTextures(1, &cameraPositionTexture);
+	if (cameraNormalTexture != -1) glDeleteTextures(1, &cameraNormalTexture);
+	if (colorTexture != -1) glDeleteTextures(1, &colorTexture);
+	if (diffuseTexture != -1) glDeleteTextures(1, &diffuseTexture);
+	if (specularTexture != -1) glDeleteTextures(1, &specularTexture);
+	if (depthTexture != -1) glDeleteTextures(1, &depthTexture);
+	if (geometryBuffer != -1) glDeleteFramebuffers(1, &geometryBuffer);
+
+	//Generate texture to store pixel locations, relative to camera.
+	glGenTextures(1, &cameraPositionTexture);
+	glBindTexture(GL_TEXTURE_2D, cameraPositionTexture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, NULL);
+
+	//Generate texture to store pixel normals, relative to camera.
+	glGenTextures(1, &cameraNormalTexture);
+	glBindTexture(GL_TEXTURE_2D, cameraNormalTexture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, NULL);
+
+	//Generate texture to store pixel color coords.
+	glGenTextures(1, &colorTexture);
+	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, NULL);
+
+	//Generate texture to store pixel diffuse lighting.
+	glGenTextures(1, &diffuseTexture);
+	glBindTexture(GL_TEXTURE_2D, diffuseTexture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, viewportWidth, viewportHeight, 0, GL_RED, GL_FLOAT, NULL);
+
+	//Generate texture to store pixel specular lighting.
+	glGenTextures(1, &specularTexture);
+	glBindTexture(GL_TEXTURE_2D, specularTexture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, viewportWidth, viewportHeight, 0, GL_RED, GL_FLOAT, NULL);
+
+	//Generate texture for depth buffer
+	glGenTextures(1, &depthTexture);
+	glBindTexture(GL_TEXTURE_2D, depthTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, viewportWidth, viewportHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+	glGenFramebuffers(1, &geometryBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, geometryBuffer);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cameraPositionTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+1, GL_TEXTURE_2D, cameraNormalTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 2, GL_TEXTURE_2D, colorTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+3, GL_TEXTURE_2D, diffuseTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+4, GL_TEXTURE_2D, specularTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+	GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0+1, GL_COLOR_ATTACHMENT0+2, GL_COLOR_ATTACHMENT0+3, GL_COLOR_ATTACHMENT0+4 };
+	glDrawBuffers(5, drawBuffers);
+	GLenum status;
+	status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		globalLogger->eWriteLog(formatToString("Framebuffer incomplete, status: {0}", status), LogLevel::Error, { "Graphics" });
+	}
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
 void GraphicsEngine::updateViewport()
@@ -893,6 +993,13 @@ void GraphicsEngine::updateViewport()
 	screenRatio = 1.0f*viewportHeight / viewportWidth;
 	//Calculate & Update cameraToClip matrix
 	updateCameraToClip();
+
+	generateGBuffer();
+
+	glm::vec2 screenDims(viewportWidth, viewportHeight);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, matrixBlockBuffer);
+	glBufferSubData(GL_UNIFORM_BUFFER, matrixBlockUniformOffsets[2], 8, &(screenDims[0]));
 
 	viewportUpdateNeeded = false;
 }
@@ -1211,35 +1318,80 @@ void GraphicsEngine::updateLights(bool bindBuffer)
 
 void GraphicsEngine::drawScene(const Scene *scene)
 {
-	glUseProgram(shadowMapShader->shaderProgram);
-	glm::dvec3 sunTarget(glm::inverse(worldToCamera) * glm::dvec4(0.0, 0.0, (zFar - zNear) / 2.0, 1.0));
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, geometryBuffer);
 
-	glm::vec3 sunUp(0.0, 1.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if ((sunUp - sunDirection).length() < 0.001)
-		glm::vec3 sunUp(glm::rotate(glm::mat4(1.0), 90.0f, glm::vec3(1.0, 0.0, 0.0)) * glm::vec4(-sunDirection, 1.0));
-	
-	glm::vec3 parallel(glm::normalize(glm::cross(-sunDirection, sunUp)));
-	sunUp = glm::cross(-sunDirection, parallel);
+	glUseProgram(geometryShader->shaderProgram);
+	setProjectionMode(ProjectionMode::Perspective);
+	scene->drawFull();
 
-	glm::dmat4 originalWorldToCamera = worldToCamera;
-	glm::dmat4 sunCameraRotation
-		(
-		parallel.x, -sunUp.x, sunDirection.x, 0,
-		parallel.y, -sunUp.y, sunDirection.y, 0,
-		parallel.z, -sunUp.z, sunDirection.z, 0,
-		0, 0, 0, 1
-		);
+	//glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sunFrameBuffer);
+	//glUseProgram(shadowMapShader->shaderProgram);
+	//glm::dvec3 sunTarget(glm::inverse(worldToCamera) * glm::dvec4(0.0, 0.0, (zFar - zNear) / 2.0, 1.0));
 
-	glm::dmat4 sunCameraTransform(1.0);
-	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, glm::dvec3(0.0, 0.0, (zFar - zNear) / 2.0));
-	sunCameraTransform = sunCameraTransform * sunCameraRotation;
-	sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, -sunTarget);
+	//glm::vec3 sunUp(0.0, 1.0, 0.0);
 
-	setWorldToCamera(sunCameraTransform);
-	setProjectionMode(ProjectionMode::Orthographic);
+	//if ((sunUp - sunDirection).length() < 0.001)
+	//	glm::vec3 sunUp(glm::rotate(glm::mat4(1.0), 90.0f, glm::vec3(1.0, 0.0, 0.0)) * glm::vec4(-sunDirection, 1.0));
+	//
+	//glm::vec3 parallel(glm::normalize(glm::cross(-sunDirection, sunUp)));
+	//sunUp = glm::cross(-sunDirection, parallel);
 
-	scene->drawShadows();
-	//glUseProgram(mainDrawShader->shaderProgram);
-	//scene->drawFull();
+	//glm::dmat4 originalWorldToCamera = worldToCamera;
+	//glm::dmat4 sunCameraRotation
+	//	(
+	//	parallel.x, -sunUp.x, sunDirection.x, 0,
+	//	parallel.y, -sunUp.y, sunDirection.y, 0,
+	//	parallel.z, -sunUp.z, sunDirection.z, 0,
+	//	0, 0, 0, 1
+	//	);
+
+	//glm::dmat4 sunCameraTransform(1.0);
+	//sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, glm::dvec3(0.0, 0.0, (zFar - zNear) / 2.0));
+	//sunCameraTransform = sunCameraTransform * sunCameraRotation;
+	//sunCameraTransform = glm::gtc::matrix_transform::translate(sunCameraTransform, -sunTarget);
+
+	//setWorldToCamera(sunCameraTransform);
+	//setProjectionMode(ProjectionMode::Orthographic);
+
+	//scene->drawShadows();
+
+	//setWorldToCamera(originalWorldToCamera);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
+
+
+	glDisable(GL_DEPTH_TEST);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(ambientLightShader->shaderProgram);
+
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_ONE, GL_ONE);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, cameraPositionTexture);
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, cameraNormalTexture);
+	glActiveTexture(GL_TEXTURE0 + 2);
+	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glActiveTexture(GL_TEXTURE0 + 3);
+	glBindTexture(GL_TEXTURE_2D, diffuseTexture);
+	glActiveTexture(GL_TEXTURE0 + 4);
+	glBindTexture(GL_TEXTURE_2D, specularTexture);
+
+	ambientQuadModel->draw();
+
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+
+	//glBindFramebuffer(GL_READ_FRAMEBUFFER, geometryBuffer);
+	//glReadBuffer(GL_COLOR_ATTACHMENT2);
+
+
+	//glBlitFramebuffer(0, 0, viewportWidth, viewportHeight, 0, 0, viewportWidth, viewportHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
