@@ -8,7 +8,7 @@
 
 #include "CustomMemory.h"
 
-#include "CubeModel.h"
+#include "SphereModel.h"
 
 #include <glm/glm.hpp>
 
@@ -17,9 +17,9 @@
 #include "GraphicsEngineTexture.h"
 
 //Point list for drawing
-unsigned short cubeBuffer[] = { 0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20 };
+extern unsigned short cubeBuffer[];
 
-CubeModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphicsEngine)
+SphereModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphicsEngine)
 {
 	if (!graphicsEngine->isClaimed())
 		throw exception("Attempt to construct a CubeModel with unclaimed GraphicsEngine");
@@ -29,7 +29,7 @@ CubeModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphics
 	const unsigned char specularComponent = 128;
 
 	//Vertices for the different parts of the cube
-	TexturedVertex cubeVertices[24] =
+	/*TexturedVertex cubeVertices[24] =
 	{
 		// Top
 		{ Vec3<float>(halfExtents.x, halfExtents.y, -halfExtents.z), Vec3<float>(0.0f, 1.0f, 0.0f), topTexture->textureNum, 255, 255, diffuseComponent, specularComponent },  //1
@@ -66,14 +66,14 @@ CubeModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphics
 		{ Vec3<float>(halfExtents.x, -halfExtents.y, halfExtents.z), Vec3<float>(0.0f, -1.0f, 0.0f), bottomTexture->textureNum, 0, 255, diffuseComponent, specularComponent },  //22
 		{ Vec3<float>(halfExtents.x, -halfExtents.y, -halfExtents.z), Vec3<float>(0.0f, -1.0f, 0.0f), bottomTexture->textureNum, 0, 0, diffuseComponent, specularComponent }, //23
 		{ Vec3<float>(-halfExtents.x, -halfExtents.y, -halfExtents.z), Vec3<float>(0.0f, -1.0f, 0.0f), bottomTexture->textureNum, 255, 0, diffuseComponent, specularComponent } //24
-	};
+	};*/
 
 	//Create VAO and buffer
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_DYNAMIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_DYNAMIC_DRAW);
 
 	//Setup VAO
 	glEnableVertexAttribArray(0);
@@ -90,7 +90,7 @@ CubeModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphics
 	glVertexAttribPointer(5, 1, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(TexturedVertex), (void *)(offsetof(TexturedVertex, specular)));
 }
 
-CubeModel::~CubeModel()
+SphereModel::~SphereModel()
 {
 	if (!graphicsEngine->isClaimed())
 		throw exception("Attempt to deconstruct a CubeModel with unclaimed GraphicsEngine");
@@ -100,7 +100,7 @@ CubeModel::~CubeModel()
 	glDeleteBuffers(1, &buffer);
 }
 
-void CubeModel::draw(const glm::dmat4 &modelToWorld)
+void SphereModel::draw(const glm::dmat4 &modelToWorld)
 {
 	//Set the ModelToWorld translation
 	graphicsEngine->setModelToWorld(modelToWorld);
@@ -112,12 +112,12 @@ void CubeModel::draw(const glm::dmat4 &modelToWorld)
 	graphicsEngine->doErrorCheck();
 }
 
-void CubeModel::drawFull(glm::dmat4 modelToWorld)
+void SphereModel::drawFull(glm::dmat4 modelToWorld)
 {
 	draw(modelToWorld);
 }
 
-void CubeModel::drawShadows(glm::dmat4 modelToWorld)
+void SphereModel::drawShadows(glm::dmat4 modelToWorld)
 {
 	draw(modelToWorld);
 }
