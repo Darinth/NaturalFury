@@ -260,6 +260,8 @@ public:
 	void relinquish();
 	//Is the context claimed by the current thread?
 	bool isClaimed();
+	//Check to make sure the graphics engine is claimed. If the engine is not claimed, an error log is written and abort is called.
+	void assertClaimed(string message);
 
 	//Getters for clip space variables
 	void setProjection(ProjectionMode projectionMode, float zNear, float zFar, float frustumScale, float screenRatio);

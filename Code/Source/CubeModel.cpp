@@ -94,8 +94,7 @@ CubeModel::CubeModel(GraphicsEngine *graphicsEngine, const glm::vec3& halfExtent
 
 CubeModel::~CubeModel()
 {
-	if (!graphicsEngine->isClaimed())
-		throw exception("Attempt to deconstruct a CubeModel with unclaimed GraphicsEngine");
+	graphicsEngine->assertClaimed("Deconstructing CubeModel.");
 
 	//Delete VAO and buffers
 	glDeleteVertexArrays(1, &VAO);

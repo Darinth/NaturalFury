@@ -13,7 +13,7 @@
 #include "GraphicsEngine.h"
 
 //Store all of the parameters for destructor
-GraphicsEngineTexture::GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned int textureNum) : graphicsEngine(graphicsEngine), textureName(textureName), textureNum(textureNum) {}
+GraphicsEngineTexture::GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned char textureNum) : graphicsEngine(graphicsEngine), textureName(textureName), textureNum(textureNum) {}
 
 GraphicsEngineTexture::~GraphicsEngineTexture()
 {

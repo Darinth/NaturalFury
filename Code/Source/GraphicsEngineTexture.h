@@ -26,10 +26,10 @@ private:
 	GraphicsEngineTexture(GraphicsEngineTexture&) = delete;
 	void operator=(GraphicsEngineTexture&) = delete;
 	//A GraphicsEngineTexture should only ever be created by a GraphicsEngine
-	GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned int textureNum);
+	GraphicsEngineTexture(GraphicsEngine* graphicsEngine, string textureName, unsigned char textureNum);
 public:
 	//Number of the texture used by TexturedVertex
-	const unsigned int textureNum;
+	const unsigned char textureNum;
 	~GraphicsEngineTexture();
 };
 

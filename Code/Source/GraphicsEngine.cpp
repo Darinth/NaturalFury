@@ -543,6 +543,16 @@ bool GraphicsEngine::isClaimed()
 	return wglGetCurrentContext() == renderingContext;
 }
 
+void GraphicsEngine::assertClaimed(string message)
+{
+	if (!isClaimed())
+	{
+		globalLogger->eWriteLog("GraphicsEngine::assertClaimed() failed. " + message, LogLevel::Error, { "Graphics" });
+		globalLogger->flush();
+		abort();
+	}
+}
+
 void GraphicsEngine::setProjection(ProjectionMode projectionMode, float zNear, float zFar, float frustumScale, float screenRatio)
 {
 	setFrustumScale(frustumScale, false);

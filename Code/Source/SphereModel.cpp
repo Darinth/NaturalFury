@@ -92,8 +92,7 @@ SphereModel::SphereModel(GraphicsEngine *graphicsEngine) : graphicsEngine(graphi
 
 SphereModel::~SphereModel()
 {
-	if (!graphicsEngine->isClaimed())
-		throw exception("Attempt to deconstruct a CubeModel with unclaimed GraphicsEngine");
+	graphicsEngine->assertClaimed("Deconstructing SphereModel.");
 
 	//Delete VAO and buffers
 	glDeleteVertexArrays(1, &VAO);

@@ -258,3 +258,12 @@ void Logger::writeLog(const string &message, LogLevel logLevel, const initialize
 #endif
 	}
 }
+
+void Logger::flush()
+{
+	for (unordered_map<string, ThreadSafeStream<fstream>*>::iterator it = logStreams.begin(); it != logStreams.end(); it++)
+	{
+		it->second->flush();
+	}
+
+}

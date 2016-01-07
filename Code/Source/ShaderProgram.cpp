@@ -102,8 +102,7 @@ ShaderProgram::ShaderProgram(GraphicsEngine* graphicsEngine, shared_ptr<Resource
 
 ShaderProgram::~ShaderProgram()
 {
-	if (!graphicsEngine->isClaimed())
-		throw exception("Attempt to deconstruct a ShaderProgram with unclaimed GraphicsEngine");
+	graphicsEngine->assertClaimed("Deconstructing ShaderProgram.");
 
 	glDeleteShader(vertShader);
 	glDeleteShader(fragShader);

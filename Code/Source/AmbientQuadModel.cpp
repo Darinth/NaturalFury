@@ -47,8 +47,7 @@ AmbientQuadModel::AmbientQuadModel(GraphicsEngine *graphicsEngine) : graphicsEng
 
 AmbientQuadModel::~AmbientQuadModel()
 {
-	if (!graphicsEngine->isClaimed())
-		throw exception("Attempt to deconstruct a CubeModel with unclaimed GraphicsEngine");
+	graphicsEngine->assertClaimed("Deconstructing AmbientQuadModel.");
 
 	//Delete VAO and buffers
 	glDeleteVertexArrays(1, &VAO);

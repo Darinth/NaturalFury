@@ -54,6 +54,8 @@ public:
 	//Having it here allows autocomplete to work in visual studio however.
 	void eWriteLog(const string &message, LogLevel logLevel, const initializer_list<string> &tags);
 #define eWriteLog(message, logLevel, tags) writeLog(message, logLevel, tags, __FUNCTION__, __FILE__, __LINE__)
+	//Flush all of the logs.
+	void flush();
 };
 
 void writeLog(const string &file, const string &message, LogLevel logLevel, const char *funcName, const char* sourceFile, unsigned int lineNum);
